@@ -1,0 +1,2 @@
+rvm --create gemset use andromeda
+export JRUBY_OPTS="$JRUBY_OPTS -Xcompat.version=1.9"

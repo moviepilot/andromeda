@@ -1,0 +1,11 @@
+.idea
+.bundle
+.yardoc
+doc
+db
+pkg
+html
+package
+coverage
+bin
+*.gem
