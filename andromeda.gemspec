@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.description = s.summary
   s.author      = 'Stefan Plantikow'
   s.email       = 'stefanp@moviepilot.com'
-  s.homepage    = 'http://moviepilot.github.com/andromeda'
+  s.homepage    = 'https://github.com/moviepilot/andromeda'
   s.rubyforge_project = 'andromeda'
 
   s.files         = `git ls-files`.split("\n")
