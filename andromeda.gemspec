@@ -19,7 +19,5 @@ Gem::Specification.new do |s|
 
   s.bindir      = 'script'
   s.executables = `git ls-files -- script/*`.split("\n").map{ |f| File.basename(f) }
-  s.default_executable = 'andromeda'
-  s.executables = ['andromeda']
   s.licenses = ['PUBLIC DOMAIN WITHOUT ANY WARRANTY']
 end
