@@ -108,10 +108,12 @@ module Andromeda
     def mark ; @mark = Id.zero unless @mark ; @mark end
 
     def chunk_key(name, chunk) ; name end
+    def chunk_val(name, key, chunk) ; chunk end
     def on_enter(k, c) ; emit << c rescue nil end   
 
     def handle_chunk(pool_descr, scope, name, meth, chunk, new_opts = nil)
       k = chunk_key name, chunk
+      c = chunk_val name, k, chunk
       p = target_pool pool_descr, k   
       if new_opts && should_clone?(p, k)
         t = clone.transplant(new_opts)
@@ -120,7 +122,7 @@ module Andromeda
         t = self
         o = new_opts
       end
-      t.submit_chunk p, scope, name, meth, k, chunk, o
+      t.submit_chunk p, scope, name, meth, k, c, o
       t
     end
 
@@ -263,7 +265,15 @@ module Andromeda
 
     public
 
-    def >>(dest) ; self.emit = if dest.kind_of?(Dest) then dest else dest.entry end end
+    def >>(dest)
+      if dest.kind_of?(Dest) then dest 
+        self.emit = dest
+        dest.base
+      else 
+        self.emit = dest.entry 
+        dest
+      end      
+    end
 
     def drop ; self.emit = nil end
 
