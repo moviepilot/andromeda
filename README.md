@@ -25,4 +25,5 @@ Below is an example that writes events to a file and reads them back in, to give
 
 There is much more, dig the source, luke!
 
+*Note* All active development happens on the devel branch, cf. boggle/devel, too.
 
