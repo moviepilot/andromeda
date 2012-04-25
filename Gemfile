@@ -7,16 +7,23 @@ gem 'atomic'
 
 group :development do
   gem 'rake'
-  gem 'redcarpet', :require => false
-  gem 'yard', :require => false
-  gem 'irbtools', :require => false
-end
-
-group :jruby do
-  gem 'maruku'
+  gem 'yard'
+  gem 'irbtools'
 end
 
 group :test do
   gem 'rspec', '2.6.0'
   gem 'simplecov'
+end
+
+platforms :jruby do
+  gem 'maruku'
+end
+
+platforms :mingw do
+  gem 'maruku'
+end
+
+platforms :ruby do
+  gem 'redcarpet'
 end
