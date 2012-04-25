@@ -196,7 +196,7 @@ module Andromeda
           exit_level  = trace_level(trace_exit, name)
           meth_trace :enter, enter_level, name, meth, k, chunk if enter_level
           pool_trace pool_level, name, meth, k, chunk, p if pool_level
-          opts_trace name, meth, k, chunk if opts_level
+          opts_trace opts_level, name, meth, k, chunk if opts_level
           transplant new_opts if new_opts          
           send meth, k, chunk
           meth_trace :exit, exit_level, name, meth, k, chunk if exit_level
