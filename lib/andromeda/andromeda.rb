@@ -266,7 +266,7 @@ module Andromeda
     public
 
     def >>(dest)
-      if dest.kind_of?(Dest) then dest 
+      if dest.kind_of?(Dest)
         self.emit = dest
         dest.base
       else 
