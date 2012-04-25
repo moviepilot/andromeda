@@ -9,6 +9,7 @@ module Andromeda
   module Internal
     class Transplanting
       attr_reader :orig
+      attr_reader :opts
 
       def initialize(init_opts = nil)
         @opts = init_opts
@@ -18,12 +19,15 @@ module Andromeda
       protected
 
       def transplant(should_clone, new_opts = nil)
-        if should_clone.nil?
-          should_clone = @opts == new_opts
+        should_clone = @opts != new_opts if should_clone.nil?
+
+        if should_clone
+          obj = self.clone
+          obj.instance_variable_set '@opts', new_opts
+          obj
+        else
+          self
         end
-        obj = if should_clone then self.clone else self end
-        obj.instance_variable_set '@opts', new_opts
-        obj
       end
     end
   end
@@ -66,7 +70,6 @@ module Andromeda
 
   class Base < Internal::Transplanting
     attr_reader :id
-    attr_reader :opts
 
     attr_accessor :log
     attr_accessor :mark
@@ -100,9 +103,11 @@ module Andromeda
 
     def handle_chunk(pool_descr, scope, name, meth, chunk, new_opts = nil)
       k = chunk_key name, chunk
-      p = target_pool pool_descr, k      
-      t = transplant(should_clone?(p, k), new_opts) if new_opts
-      t.submit_chunk p, scope, name, meth, k, chunk
+      p = target_pool pool_descr, k   
+      f = new_opts && should_clone?(p, k)
+      t = transplant f, new_opts
+      o = if f then nil else new_opts end
+      t.submit_chunk p, scope, name, meth, k, chunk, o
       t
     end
 
@@ -150,7 +155,7 @@ module Andromeda
         else true end
     end
 
-    def submit_chunk(p, scope, name, meth, k, chunk)
+    def submit_chunk(p, scope, name, meth, k, chunk, new_opts = nil)
       mark_opts
       run_chunk p, scope, name, meth, k, chunk do
         begin
@@ -159,6 +164,7 @@ module Andromeda
           exit_level  = trace_level(trace_exit, name)
           meth_trace :enter, enter_level, name, meth, k, chunk if enter_level
           pool_trace pool_level, name, meth, k, p if pool_level
+          @opts = new_opts if new_opts
           send meth, k, chunk
           meth_trace :exit, exit_level, name, meth, k, chunk if exit_level
         rescue Exception => e
