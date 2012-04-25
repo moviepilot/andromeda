@@ -46,5 +46,17 @@ module Andromeda
 	    end
 
 	end
-	
+
+	# Passes all input and waits for the associated scope to return to the start value
+	# (will only work if there is no concurrent modification to the associated scope)
+	class ScopeWaiter < Base
+
+		def on_enter(k, v)
+			scope = opts[:scope]
+			value = scope.value
+			super k, v
+			scope.wait_for value
+		end
+
+	end	
 end	

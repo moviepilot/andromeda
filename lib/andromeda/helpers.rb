@@ -21,6 +21,7 @@ module Andromeda
 	class Tee < Transf
 		attr_accessor :level
 		attr_accessor :other
+		attr_accessor :delay
 
 		def init_pool_config ; :local end
 
@@ -32,7 +33,8 @@ module Andromeda
 		def on_enter(k, c)
 			log_   = log
 			level_ = level
-			log_.send level, "TEE key: #{k} chunk: #{c}" if log_ && level_
+			sleep delay.to_i if delay
+			log_.send level, "TEE key: #{k} chunk: #{c} opts: #{opts}" if log_ && level_
 			other << c rescue nil
 			super k, c
 		end
@@ -94,5 +96,5 @@ module Andromeda
 			end
 		end
 	end
-	
+
 end

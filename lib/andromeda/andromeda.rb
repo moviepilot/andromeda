@@ -1,7 +1,5 @@
 # TODO
-#  - Turn into separate gem
-#  - Write Tests
-#  - Write fusor for synchronization (extra class that blocks until ready to submit)
+#  - Write tests
 #  - Write docs, add yard support for documenting bases, attrs, etc.
 #  - Make nice slideshow and become very famous and rich. yay!
 module Andromeda
@@ -18,16 +16,23 @@ module Andromeda
 
       protected
 
-      def transplant(should_clone, new_opts = nil)
-        should_clone = @opts != new_opts if should_clone.nil?
+      def transplant(new_opts = nil)
+        @opts = new_opts if new_opts
+        self
+      end
+    end
 
-        if should_clone
-          obj = self.clone
-          obj.instance_variable_set '@opts', new_opts
-          obj
-        else
-          self
-        end
+    class Cache
+      def initialize ; reset end
+
+      def reset ; @store = {} end
+
+      def lookup(key)
+        value = @store[key]
+        return value if value
+        value = yield key
+        @store[key] = value
+        value
       end
     end
   end
@@ -61,6 +66,7 @@ module Andromeda
       end
       new_opts[:scope] ||= Scope.new
       new_opts[:mark]  ||= Id.zero
+      new_opts[:name]    = name
       base.handle_chunk target_pool, new_opts[:scope], name, meth, chunk, new_opts
       new_opts
     end
@@ -78,6 +84,7 @@ module Andromeda
 
     attr_accessor :trace_enter
     attr_accessor :trace_pool
+    attr_accessor :trace_opts
     attr_accessor :trace_exit
 
     def initialize(config = {})
@@ -86,9 +93,11 @@ module Andromeda
       set_from_config init_from_config, config      
       @trace_enter ||= init_trace_hash :enter
       @trace_pool  ||= init_trace_hash :pool
+      @trace_opts  ||= init_trace_hash :opts
       @trace_exit  ||= init_trace_hash :emit
       @pool        ||= init_pool_config
       @pool          = make_pool @pool
+      reset_clone
     end 
 
     def init_trace_hash(kind) ; {} end
@@ -104,24 +113,44 @@ module Andromeda
     def handle_chunk(pool_descr, scope, name, meth, chunk, new_opts = nil)
       k = chunk_key name, chunk
       p = target_pool pool_descr, k   
-      f = new_opts && should_clone?(p, k)
-      t = transplant f, new_opts
-      o = if f then nil else new_opts end
+      if new_opts && should_clone?(p, k)
+        t = clone.transplant(new_opts)
+        o = nil
+      else
+        t = self
+        o = new_opts
+      end
       t.submit_chunk p, scope, name, meth, k, chunk, o
       t
     end
 
-    def intern(dest) ; dest.transplant(nil, opts) end
+    def intern(dest)
+      new_opts = opts
+      old_opts = dest.opts
+      if old_opts == new_opts then dest else dest.clone.transplant(new_opts) end
+    end
 
     def dest(name)
-      result = if self.respond_to?(name)
-        then intern self.send(name)
-        else Dest.new self, name, "on_#{name}".to_sym, opts  end
+      result = @dest_cache.lookup(name) do |name|
+        if self.respond_to?(name)
+          then intern self.send(name)
+          else Dest.new self, name, "on_#{name}".to_sym, opts  end
+      end
       raise ArgumentError, "unknown or invalid dest: '#{name}'" unless result.kind_of?(Dest)
       result
     end
 
+    def clone 
+      c = super
+      c.reset_clone
+      c
+    end
+
     protected
+
+    def reset_clone
+      @dest_cache = Internal::Cache.new
+    end
 
     def set_from_config(what, config = {})
       init_readers = what.include? :readers
@@ -160,11 +189,13 @@ module Andromeda
       run_chunk p, scope, name, meth, k, chunk do
         begin
           enter_level = trace_level(trace_enter, name)
+          opts_level  = trace_level(trace_opts, name)
           pool_level  = trace_level(trace_pool, name)
           exit_level  = trace_level(trace_exit, name)
           meth_trace :enter, enter_level, name, meth, k, chunk if enter_level
-          pool_trace pool_level, name, meth, k, p if pool_level
-          @opts = new_opts if new_opts
+          pool_trace pool_level, name, meth, k, chunk, p if pool_level
+          opts_trace name, meth, k, chunk if opts_level
+          transplant new_opts if new_opts          
           send meth, k, chunk
           meth_trace :exit, exit_level, name, meth, k, chunk if exit_level
         rescue Exception => e
@@ -186,14 +217,19 @@ module Andromeda
       log_.send level, "METH #{id.to_s}, :#{kind}, :#{name}, method: #{method}, key:, #{k}, chunk: #{chunk}" if log_
     end
 
-    def pool_trace(level, name, method, k, p)
+    def pool_trace(level, name, method, k, chunk, p)
       log_ = log     
-      log_.send level, "POOL #{id.to_s}, :#{name}, method: #{method}, key: #{k}, self_pool: #{self.pool}, pool: #{p}" if log_
+      log_.send level, "POOL #{id.to_s}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, self_pool: #{self.pool}, pool: #{p}" if log_
+    end
+
+    def opts_trace(level, name, method, k, chunk)
+      log_ = log     
+      log_.send level, "OPTS #{id.to_s}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, opts: #{opts}" if log_
     end
 
     def check_mark
       mark = @opts[:mark]
-      raise RuntimeError, 'invalid mark' if mark && !mark.zero?
+      raise RuntimeError, 'Invalid mark' if mark && !mark.zero?
     end
 
     def mark_opts
