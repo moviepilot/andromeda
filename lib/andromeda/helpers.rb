@@ -1,68 +1,26 @@
 module Andromeda
 
-
-	class Join < Base
-
-		def initialize(config = {})
-			super config
-			@mutex = Mutex.new
-			@cv    = ConditionVariable.new
-			#  box value to keep ref after clone
-			@state = [ state_init ]
-		end
-
-		protected
-
-		def state_init ; {} end
-		def state_key(chunk) ;  chunk end
-		def state_complete?(state) ; state end
-		def state_updatable?(state, chunk) ;  state[state_key(chunk)] == nil end
-		def state_update(state, chunk) ; state[state_key(chunk)] = chunk end
-
-	    def run(pool, scope, meth, chunk, &thunk)
-	    	@mutex.synchronize {
-	    		state = @state[0]
-	    		while true
-	    			if state_updatable?(state, chunk)
-	    				@state[0] = (state = state_update(state, chunk))
-	    				if state_complete?(state)
-	    					super pool, scope, meth, state, &thunk
-	    					@state[0] = state_init
-	    				end
-						cv.signal
-						return
-	    			else
-	    				cv.wait
-	    			end
-	    		end
-	    	}
-	    end
-
-	end
-
 	class Transf < Base
 		attr_accessor :filter
 		attr_accessor :mapper
-		attr_accessor :reducer
 
-		def output(c)
+		def output(k, c)
 			filter_  = filter
 			mapper_  = mapper
-			reducer_ = reducer
-			if !filter_ || filter_.call(c)
-				c = if mapper_ then mapper_.call c else [c] end
-				c = reducer_.call c if reducer_
-				yield c
+			if !filter_ || filter_.call(k, c)
+				c = if mapper_ then mapper_.call k, c else [c] end
+				yield k, c
 			end
 		end
 
-		def on_enter(c)
-			output(c) { |o| super o } 
+		def on_enter(k, c)
+			output(k, c) { |k, o| super k, o } 
 		end
 	end
 
 	class Tee < Transf
 		attr_accessor :level
+		attr_accessor :other
 
 		def init_pool_config ; :local end
 
@@ -71,15 +29,16 @@ module Andromeda
 			@level ||= :info
 		end
 
-		def on_enter(c)
+		def on_enter(k, c)
 			log_   = log
 			level_ = level
-			log_.send level, "#{c}" if log_ && level_
-			super c
+			log_.send level, "TEE key: #{k} chunk: #{c}" if log_ && level_
+			other << c rescue nil
+			super k, c
 		end
 	end
 
-	class Targeting < Transf
+	class TargetBase < Transf
 		attr_accessor :targets
 
 		def initialize(config = {})
@@ -87,39 +46,28 @@ module Andromeda
 			@targets ||= {}
 		end
 
-		def target_values
-			t = targets
-			if t.kind_of?(Hash)	then t.values else t end
-		end
-
-		def switch_target(c)
-			switch_ = switch
-			switch_ = switch_.call(c) if switch_
-			targets[switch_]
-		end
+		def target_values ; t = targets ; t.values rescue t end
 	end
 
-	class Broadc < Targeting
-		def on_enter(c)
-			output(c) do |o|
+	class Broadc < TargetBase
+		def on_enter(k, c)
+			output(k, c) do |k, o|
 				target_values { |t| intern(t) << o rescue nil }
 			end
 		end		
 	end
 
-	class Switch < Targeting
-		attr_accessor :switch
-
-		def on_enter(c)
-			target_ = intern(switch_target c) rescue emit
-			output(c) { |o| target_ << o }
+	class Switch < TargetBase
+		def on_enter(k, c)
+			output(k, c) { |k, o| (intern(k) rescue emit) << o }
 		end
 	end
 
-	class Router < Targeting
-		def on_enter(c)
-			target_ = intern(switch_target c[0]) rescue emit
-			output(c[1]) { |o| target_ << o }
+	class Router < TargetBase
+		def chunk_key(name, c) ; c[0] end
+
+		def on_enter(k, c)
+			output(k, c[1]) { |k, o| (intern(k) rescue emit) << o }
 		end
 	end
 
@@ -127,8 +75,24 @@ module Andromeda
 		def init_pool_config ; :fifo end
 	end
 
-	class LocalBase < Base
-		def init_pool_config ; :local end
+	class GathererBase < Base
+		def init_pool_config ; :single end
 	end
 
+	class Reducer < GathererBase
+		attr_accessor :state
+		attr_accessor :reducer
+
+		def on_enter(k, c)
+			reducer_ = reducer
+
+			state_   = state
+			new_     = reducer_.call state_, k, c
+			unless new_ == state_
+				state = new_
+				super k, new_ 
+			end
+		end
+	end
+	
 end

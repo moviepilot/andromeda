@@ -19,6 +19,29 @@ module Andromeda
 
     # @return [ThreadPool] that guarantees fifo processing of requests
     def self.new_fifo_pool ; new_single_pool end
+
+    # @return [ThreadPool, Any] a new thread pool as requested by pool_descr
+    #
+    # @param [:local, :spawn, :single, :fifo, :default, :global, Object] pool_descr
+    #     If pool_descr is :spawn, uses SpawnPool.default_pool.
+    #     If pool_descr is :single, uses PoolSupport.new_single_pool.
+    #     If pool_descr is :fifo, uses PoolSupport.new_fifo_pool.
+    #     If pool_descr is :shared, uses the globally shared PoolSupport.global_pool.
+    #     If pool_descr is :num_cpus uses PoolSupport.new_default_pool.
+    #     If pool_descr is :default uses PoolSupport.new_default_pool.
+    #     Otherwise, just returns pool_descr.
+    def self.make_pool(pool_descr)
+      case pool_descr
+          when :spawn then SpawnPool.default_pool
+          when :shared then  PoolSupport.global_pool
+          when :num_cpus then PoolSupport.new_default_pool
+          when :default then PoolSupport.new_default_pool
+          when :single then PoolSupport.new_single_pool
+          when :fifo then PoolSupport.new_fifo_pool 
+          else
+            pool_descr
+      end
+    end    
   end
 
   # Fake thread pool that spawns an unlimited number of threads
@@ -63,7 +86,7 @@ module Andromeda
       values.each { |pool| pool.shutdown }
     end
 
-    alias_method :process_stage, :[]
+    alias_method :key_pool, :[]
   end
 
 end

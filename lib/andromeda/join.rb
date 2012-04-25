@@ -1,7 +1,5 @@
 module Andromeda
 
-	# untested as in not at all but should would perfectly fine according to theory
-
 	class Join < Base
 
 		def initialize(config = {})
@@ -16,23 +14,26 @@ module Andromeda
 
 		def state_init ; {} end
 
-		# typical usages need to override these two
-		def state_key(chunk) ; chunk end
-		def state_complete?(state)  state end
+		def state_ready?(state)
+			raise RuntimeException, 'Not implemented'
+		end
 
-		def state_updatable?(state, chunk) ;  state[state_key(chunk)] == nil end
-		def state_update(state, chunk) ; state[state_key(chunk)] = chunk; state end
+		def state_empty?(state, k, chunk)  ; state[k].nil? end
+		def state_updated(state, k, chunk) ; state[k] = chunk; state end
 
-	    def run(pool, scope, meth, chunk, &thunk)
+		def state_chunk_key(name, state) ; chunk_key(name, state) end
+
+	    def run_chunk(pool, scope, name, meth, k, chunk, &thunk)
 	    	@mutex.synchronize do
 	    		state = @state[0]
 	    		while true
-	    			if state_updatable?(state, chunk)
-	    				@state[0] = (state = state_update(state, chunk))
-	    				if state_complete?(state)
+	    			if state_empty?(state, k, chunk)
+	    				@state[0] = (state = state_updated(state, k, chunk))
+	    				if state_ready?(state)
 	    					@state[0] = state_init
 							cv.signal
-	    					return super pool, scope, meth, state, &thunk
+							new_k = state_chunk_key(name, state)
+	    					return super pool, scope, name, meth, new_k, state, &thunk
 	    				else
 	    					cv.signal
 	    					return self
@@ -45,4 +46,5 @@ module Andromeda
 	    end
 
 	end
+	
 end	

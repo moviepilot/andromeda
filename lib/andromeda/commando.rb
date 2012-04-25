@@ -10,16 +10,16 @@ module Andromeda
 		attr_reader :data
 		attr_reader :time
 
-		def initialize(cmd, data = {})
+		def initialize(cmd, data = {}, cmd_time = nil)
 			raise ArgumentError unless cmd.kind_of?(Symbol)
 			@cmd  = cmd
 			@data = data
-			@time = Time.now.to_i
+			@time = if cmd_time then cmd_time else Time.now.to_i end
 		end
 
-		def to_hash
-			{ :cmd => cmd, :data => data, :time => time }
-		end
+		def as_json ; { cmd: cmd, data: data, time: time } end
+
+		def to_s ; as_json.to_json end
 	end
 
 	class CommandoWriter < CommandoBase
@@ -30,13 +30,13 @@ module Andromeda
 			@file   = File.open path, @mode
 		end
 
-		def on_enter(c)
+		def on_enter(k, c)
 			if c == :close
 				file.sync
 				file.fsync rescue nil
 				file.close
 			else
-				c = c.to_hash if c.kind_of?(Commando)				
+				c    = c.as_json.respond_to?(:as_json)
 				cmd  = c[:cmd]
 				raise ArgumentError, "invalid commando" unless cmd.kind_of?(Symbol)
 				data = c[:data]
@@ -64,7 +64,7 @@ module Andromeda
 			@file = File.open path, 'r'
 		end
 
-		def on_enter(c)
+		def on_enter(k, c)
 			parser        = dest(:parse)
 			start_matcher = />>> ANDROMEDA_COMMANDO :(\w+) TIME (\d+) LEN (\d+) START/
 			end_matcher   = /<<< ANDROMEDA_COMMANDO :(\w+) END/
@@ -97,10 +97,10 @@ module Andromeda
 			end
 		end
 
-		def on_parse(c)
+		def on_parse(k, c)
 			data = c[:data]
 			c[:data] = if data.chomp == '' then nil else JSON::parse(data) end
-			emit << c rescue nil
+			emit << (Commando.new c[:cmd], c[:data], c[:time]) rescue nil
 		end
 	end
 end
