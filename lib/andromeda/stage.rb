@@ -71,8 +71,8 @@ module Andromeda
     def map_chunk(name, chunk) ; chunk end
     def chunk_key(name, chunk) ; name end
     def chunk_val(name, chunk) ; chunk end
-    def set_opts!(name, chunk, key, val, opts) ; nil end
-    def flt_input(name, chunk, key, val, opts) ; false end
+    def set_opts!(name, chunk, key, val, opts_in) ; nil end
+    def flt_input(name, chunk, key, val, opts_in) ; false end
 
     def handle_chunk(pool_descr, name, meth, chunk, opts_in)
       c = map_chunk name, chunk

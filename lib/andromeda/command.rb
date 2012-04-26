@@ -12,18 +12,17 @@ module Andromeda
 			@time = if cmd_time then cmd_time else Time.now.to_i end
 		end
 
-		def as_json ; { cmd: cmd, data: (data.as_json rescue data), time: time } end
-
 		def if_cmd(sym) ; if sym == cmd then yield data else seld end end
 
+		def as_json ; { cmd: cmd, data: (data.as_json rescue data), time: time } end
 		def to_s ; as_json.to_json end
 
-		def self.input(cmd, data = {}, cmd_time = nil)
+		def self.new_input(cmd, data = {}, cmd_time = nil)
 			Command.new(:input, Command.new(cmd, data, cmd_time), cmd_time)
 		end
 	end
 
-	class CommandStage < InlineKeyRouter
+	class FileCommandStage < InlineKeyRouter
 		attr_reader :path
 		attr_reader :mode
 		attr_reader :file
@@ -75,14 +74,17 @@ module Andromeda
 		protected
 
 		def close_file(f)
-			sync_file(f)
-			f.close
+			begin
+				sync_file(f)
+			ensure
+				f.close
+			end
 		end
 
 		def sync_file(f) ; end
 	end
 
-	class CommandWriter < CommandStage
+	class CommandWriter < FileCommandStage
 
 		def init_mode ; 'w+' end
 
@@ -115,7 +117,6 @@ module Andromeda
 		end		
 	end
 
-	# class CommandoReader < CommandoStage
 
 	# 	def init_mode ; 'r' end
 
