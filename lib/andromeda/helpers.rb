@@ -4,18 +4,13 @@ module Andromeda
 		attr_accessor :filter
 		attr_accessor :mapper
 
-		def output(k, c)
-			filter_  = filter
-			mapper_  = mapper
-			if !filter_ || filter_.call(k, c)
-				c = if mapper_ then mapper_.call k, c else [c] end
-				yield k, c
+		def send_chunk(meth, k, chunk)
+			filter_ = filter
+			mapper_ = mapper
+			if !(filter_ && filter_.call(chunk))
+				super meth, k, if mapper_ then mapper_.call(chunk) else chunk end
 			end
-		end
-
-		def on_enter(k, c)
-			output(k, c) { |k, o| super k, o } 
-		end
+		end		
 	end
 
 	class Tee < Transf
@@ -34,7 +29,7 @@ module Andromeda
 			log_   = log
 			level_ = level
 			sleep delay.to_i if delay
-			log_.send level, "TEE key: #{k} chunk: #{c} opts: #{opts}" if log_ && level_
+			log_.send level, "Andromeda::TEE ident: #{ident} key: #{k} chunk: #{c} opts: #{opts}" if log_ && level_
 			other << c rescue nil
 			super k, c
 		end
@@ -53,24 +48,19 @@ module Andromeda
 
 	class Broadc < TargetBase
 		def on_enter(k, c)
-			output(k, c) do |k, o|
-				target_values { |t| intern(t) << o rescue nil }
-			end
+			target_values { |t| intern(t) << o rescue nil }
 		end		
 	end
 
 	class Switch < TargetBase
 		def on_enter(k, c)
-			output(k, c) { |k, o| (intern(k) rescue emit) << o }
+			(intern(k) rescue emit) << c rescue nil
 		end
 	end
 
-	class Router < TargetBase
-		def chunk_key(name, c) ; c[0] end
-
-		def on_enter(k, c)
-			output(k, c[1]) { |k, o| (intern(k) rescue emit) << o }
-		end
+	class Router < Switch
+		def chunk_key(name, c) ; c[:key] end
+		def chunk_val(name, key, c) ; c[:val] end
 	end
 
 	class FifoBase < Base

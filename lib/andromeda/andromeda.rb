@@ -213,7 +213,7 @@ module Andromeda
           exit_level  = trace_level(trace_exit, name)
           meth_trace :enter, enter_level, name, meth, k, chunk if enter_level
           pool_trace pool_level, name, meth, k, chunk, p if pool_level
-          opts_trace opts_level, name, meth, k, chunk if opts_level
+          opts_trace :enter, opts_level, name, meth, k, chunk if opts_level
           send_chunk meth, k, chunk
           meth_trace :exit, exit_level, name, meth, k, chunk if exit_level
         rescue Exception => e
@@ -224,6 +224,7 @@ module Andromeda
             o.delete :mark
             o.delete :name
           end
+          opts_trace :exit, opts_level, name, meth, k, chunk if opts_level
           scope.leave if scope
         end
       end
@@ -243,9 +244,7 @@ module Andromeda
     end
 
     def trace_level(h, name)
-      if h.kind_of?(Hash)
-        then h[name] rescue nil
-        else h end
+      if h.kind_of?(Symbol) then h else (h[name] rescue nil) end
     end
 
     def meth_trace(kind, level, name, method, k, chunk)
@@ -258,9 +257,9 @@ module Andromeda
       log_.send level, "POOL #{ident}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, self_pool: #{self.pool}, pool: #{p}" if log_
     end
 
-    def opts_trace(level, name, method, k, chunk)
+    def opts_trace(kind, level, name, method, k, chunk)
       log_ = log
-      log_.send level, "OPTS #{ident}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, opts: #{opts}" if log_
+      log_.send level, "OPTS #{ident}, :#{kind}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, opts: #{opts}" if log_
     end
 
     def send_chunk(meth, k, chunk)
