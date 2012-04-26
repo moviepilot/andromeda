@@ -37,11 +37,11 @@ module Andromeda
           when :num_cpus then PoolSupport.new_default_pool
           when :default then PoolSupport.new_default_pool
           when :single then PoolSupport.new_single_pool
-          when :fifo then PoolSupport.new_fifo_pool 
+          when :fifo then PoolSupport.new_fifo_pool
           else
             pool_descr
       end
-    end    
+    end
   end
 
   # Fake thread pool that spawns an unlimited number of threads

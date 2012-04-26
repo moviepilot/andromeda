@@ -4,82 +4,92 @@
 #  - Make nice slideshow and become very famous and rich. yay!
 module Andromeda
 
-  module Internal
-    class Transplanting
-      attr_reader :orig
-      attr_reader :opts
-
-      def initialize(init_opts = nil)
-        @opts = init_opts
-        @orig = self
-      end
-
-      protected
-
-      def transplant(new_opts = nil)
-        @opts = new_opts if new_opts
-        self
-      end
-    end
-
-    class Cache
-      def initialize ; reset end
-
-      def reset ; @store = {} end
-
-      def lookup(key)
-        value = @store[key]
-        return value if value
-        value = yield key
-        @store[key] = value
-        value
-      end
-    end
-  end
-
-  class Dest < Internal::Transplanting
+  class Dest
     attr_reader :base
-    attr_reader :meth
     attr_reader :name
+    attr_reader :meth
+    attr_reader :here # "calling base"
 
-    def initialize(base, name, meth, init_opts = nil)
-      super init_opts
+    def initialize(base, name, meth, here)
+      raise ArgumentError, "#{base} is not a Base" unless base.kind_of?(Base)
       raise ArgumentError, "#{name} is not a symbol" unless name.kind_of?(Symbol)
       raise ArgumentError, "#{meth} is not a symbol" unless meth.kind_of?(Symbol)
-      raise ArgumentError, "#{base} is not a base" unless base.kind_of?(Base)
       raise NoMethodError, "#{base} does not respond to #{meth}'" unless base.respond_to?(meth)
-      @base  = base
-      @meth  = meth
-      @name  = name
+      raise ArgumentError, "#{here} is neither nil nor a Base" unless !here || here.kind_of?(Base)
+      @base = base
+      @meth = meth
+      @name = name
+      @here = here
     end
 
-    def <<(chunk, opts = {}) ; submit chunk, opts ; self end
-    def submit(chunk, opts = {}) ; submit_to nil, chunk, opts end
-    def submit_now(chunk, opts = {}) ; submit_to :local, chunk, opts end
+    def <<(chunk, opts_in = {}) ; submit chunk, opts_in ; self end
 
-    def submit_to(target_pool, chunk, opts = {})
-      if @opts
-        new_opts = @opts.clone
-        opts.each { |k, v| new_opts[k] = v }
-      else
-        new_opts = opts
-      end
-      new_opts[:scope] ||= Scope.new
-      new_opts[:mark]  ||= Id.zero
-      new_opts[:name]    = name
-      base.handle_chunk target_pool, new_opts[:scope], name, meth, chunk, new_opts
-      new_opts
+    def submit(chunk, opts_in = {}) ; submit_to nil, chunk, opts_in end
+    def submit_now(chunk, opts_in = {}) ; submit_to :local, chunk, opts_in end
+
+    def submit_to(target_pool, chunk, opts_in = {})
+       o = here.opts.clone.update(opts_in) rescue opts_in
+       base.handle_chunk target_pool, name, meth, chunk, o
     end
+
+    def start ; entry.intern(nil) end
 
     def entry ; self end
+    def exit ; base.exit end
+
+    def intern(new_caller)
+      if here == new_caller then self else Dest.new base, name, meth, new_caller end
+    end
   end
 
-  class Base < Internal::Transplanting
+  class Base
+
+    def self.destinations(inherit = true)
+      s = if instance_variable_defined?('@destinations')
+            then instance_variable_get('@destinations')
+            else Set.new end
+      if inherit
+        c = self
+        while (c = c.superclass)
+          s = s.union c.destinations(false) rescue s
+        end
+      end
+      s
+    end
+
+    def self.name_dest(*names)
+      name_set = names.to_set
+      dest_set = destinations false
+      instance_variable_set '@destinations', dest_set.union(name_set)
+    end
+
+    def self.meth_dest(*names)
+      name_dest *names
+      names.each do |name|
+        define_method :"#{name}" do ||
+          intern (Dest.new self, :"#{name}", :"on_#{name}", self)
+        end
+      end
+    end
+
+    def self.attr_dest(*names)
+      name_dest *names
+      attr_writer *names
+      names.each do |name|
+        define_method :"#{name}" do ||
+          intern (instance_variable_get("@#{name}"))
+        end
+      end
+    end
+
     attr_reader :id
+
+    meth_dest :enter
+    attr_dest :emit
 
     attr_accessor :log
     attr_accessor :mark
-    attr_accessor :emit
+    attr_accessor :nick
     attr_accessor :pool
 
     attr_accessor :trace_enter
@@ -88,71 +98,77 @@ module Andromeda
     attr_accessor :trace_exit
 
     def initialize(config = {})
-      super config[:init_opts]
-      @id = Id.gen
-      set_from_config init_from_config, config      
+      @id            = Id.gen
+      set_from_config init_from_config, config
       @trace_enter ||= init_trace_hash :enter
       @trace_pool  ||= init_trace_hash :pool
       @trace_opts  ||= init_trace_hash :opts
       @trace_exit  ||= init_trace_hash :emit
       @pool        ||= init_pool_config
-      @pool          = make_pool @pool
-      reset_clone
-    end 
+      @opts        ||= {}
+      @pool        ||= :local
+    end
+
+    def initialize_copy(other)
+      super other
+      @trace_enter = @trace_enter.clone
+      @trace_pools = @trace_pool.clone
+      @trace_opts  = @trace_opts.clone
+      @trace_exit  = @trace_exit.clone
+      @opts        = @opts.clone
+    end
+
+    def pool=(pool_descr)
+      @pool = make_pool pool_descr
+    end
 
     def init_trace_hash(kind) ; {} end
     def init_pool_config ; :local end
     def init_from_config ; [:readers, :writers] end
 
+    def opts ; @opts end
     def log ; @log = Logger.new(STDERR) unless @log ; @log end
     def mark ; @mark = Id.zero unless @mark ; @mark end
 
     def chunk_key(name, chunk) ; name end
-    def chunk_val(name, key, chunk) ; chunk end
-    def on_enter(k, c) ; emit << c rescue nil end   
+    def chunk_val(name, chunk) ; chunk end
+    def chunk_flt(name, key, val, opts) ; false end
 
-    def handle_chunk(pool_descr, scope, name, meth, chunk, new_opts = nil)
+    def on_enter(k, c) ; emit << c rescue nil end
+
+    def handle_chunk(pool_descr, name, meth, chunk, opts_in)
       k = chunk_key name, chunk
-      c = chunk_val name, k, chunk
-      p = target_pool pool_descr, k   
-      if new_opts && should_clone?(p, k)
-        t = clone.transplant(new_opts)
-        o = nil
-      else
-        t = self
-        o = new_opts
+      v = chunk_val name, chunk
+      p = target_pool pool_descr, k
+      f = should_clone? p, k
+      t = if f then clone else self end
+      t.opts.tap do |o|
+        o.update opts_in
+        o[:scope] ||= Scope.new
+        o[:mark]  ||= Id.zero
+        o[:name]    = name
+        t.submit_chunk p, meth, f, k, v, o unless chunk_flt(name, k, v, o)
+        return o
       end
-      t.submit_chunk p, scope, name, meth, k, c, o
-      t
     end
 
-    def intern(dest)
-      new_opts = opts
-      old_opts = dest.opts
-      if old_opts == new_opts then dest else dest.clone.transplant(new_opts) end
-    end
+    def intern(dest) ; if dest then dest.intern(self) else nil end end
 
     def dest(name)
-      result = @dest_cache.lookup(name) do |name|
-        if self.respond_to?(name)
-          then intern self.send(name)
-          else Dest.new self, name, "on_#{name}".to_sym, opts  end
+      if self.respond_to?(name)
+        result = self.send(name)
+        raise ArgumentError, "Invalid dest: '#{name}'" unless result.kind_of?(Dest)
+        intern result
+      else
+        nil
       end
-      raise ArgumentError, "unknown or invalid dest: '#{name}'" unless result.kind_of?(Dest)
-      result
     end
 
-    def clone 
-      c = super
-      c.reset_clone
-      c
-    end
+    def destinations ; self.class.destinations end
+
+    def ident ; if nick then "#{id} (aka #{nick})" else "#{id}" end end
 
     protected
-
-    def reset_clone
-      @dest_cache = Internal::Cache.new
-    end
 
     def set_from_config(what, config = {})
       init_readers = what.include? :readers
@@ -160,12 +176,12 @@ module Andromeda
       config.each_pair do |k, v|
         k = k.to_sym rescue nil
         if init_writers
-          writer = "#{k}=".to_sym rescue nil
-          if writer &&  self.respond_to?(writer)
-            then self.send writer, v 
+          writer = :"#{k}=" rescue nil
+          if writer && self.respond_to?(writer)
+            then self.send writer, v
             else instance_variable_set "@#{k}", v if init_readers && self.respond_to?(k) end
         else
-          instance_variable_set "@#{k}", v if init_readers && self.respond_to?(k)  
+          instance_variable_set "@#{k}", v if init_readers && self.respond_to?(k)
         end
       end
     end
@@ -178,16 +194,17 @@ module Andromeda
       p
     end
 
-    def make_pool(p) ; PoolSupport.make_pool p  end
+    def make_pool(p) ; PoolSupport.make_pool p end
 
-    def should_clone?(pool, k) 
-      if pool.respond_to?(:max) 
-        then pool.max > 1 
-        else true end
+    def should_clone?(pool, k)
+      return true if pool == :local
+      return true if (begin pool.respond_to?(:max) && pool.max > 1 rescue false end)
+      false
     end
 
-    def submit_chunk(p, scope, name, meth, k, chunk, new_opts = nil)
-      mark_opts
+    def submit_chunk(p, meth, was_cloned, k, chunk, o)
+      scope = o[:scope]
+      name  = o[:name]
       run_chunk p, scope, name, meth, k, chunk do
         begin
           enter_level = trace_level(trace_enter, name)
@@ -197,48 +214,18 @@ module Andromeda
           meth_trace :enter, enter_level, name, meth, k, chunk if enter_level
           pool_trace pool_level, name, meth, k, chunk, p if pool_level
           opts_trace opts_level, name, meth, k, chunk if opts_level
-          transplant new_opts if new_opts          
-          send meth, k, chunk
+          send_chunk meth, k, chunk
           meth_trace :exit, exit_level, name, meth, k, chunk if exit_level
         rescue Exception => e
           handle_exception name, meth, k, chunk, e
         ensure
+          if o && !was_cloned
+            o.delete :scope
+            o.delete :mark
+            o.delete :name
+          end
           scope.leave if scope
         end
-      end
-    end
-
-    def trace_level(h, name)
-      if h.kind_of?(Hash)
-        then h[name] rescue nil
-        else h end
-    end
-
-    def meth_trace(kind, level, name, method, k, chunk) 
-      log_ = log     
-      log_.send level, "METH #{id.to_s}, :#{kind}, :#{name}, method: #{method}, key:, #{k}, chunk: #{chunk}" if log_
-    end
-
-    def pool_trace(level, name, method, k, chunk, p)
-      log_ = log     
-      log_.send level, "POOL #{id.to_s}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, self_pool: #{self.pool}, pool: #{p}" if log_
-    end
-
-    def opts_trace(level, name, method, k, chunk)
-      log_ = log     
-      log_.send level, "OPTS #{id.to_s}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, opts: #{opts}" if log_
-    end
-
-    def check_mark
-      mark = @opts[:mark]
-      raise RuntimeError, 'Invalid mark' if mark && !mark.zero?
-    end
-
-    def mark_opts
-      if @mark && !@mark.zero?
-        if @opts[:mark]
-          then @opts[:mark] = @opts[:mark].xor(mark)
-          else @opts[:mark] = mark end
       end
     end
 
@@ -255,6 +242,46 @@ module Andromeda
       self
     end
 
+    def trace_level(h, name)
+      if h.kind_of?(Hash)
+        then h[name] rescue nil
+        else h end
+    end
+
+    def meth_trace(kind, level, name, method, k, chunk)
+      log_ = log
+      log_.send level, "METH #{ident}, :#{kind}, :#{name}, method: #{method}, key:, #{k}, chunk: #{chunk}" if log_
+    end
+
+    def pool_trace(level, name, method, k, chunk, p)
+      log_ = log
+      log_.send level, "POOL #{ident}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, self_pool: #{self.pool}, pool: #{p}" if log_
+    end
+
+    def opts_trace(level, name, method, k, chunk)
+      log_ = log
+      log_.send level, "OPTS #{ident}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, opts: #{opts}" if log_
+    end
+
+    def send_chunk(meth, k, chunk)
+      mark_opts
+      self.send meth, k, chunk
+    end
+
+    def check_mark
+      m = @opts[:mark]
+      raise RuntimeError, 'Invalid mark' if m && !m.zero?
+    end
+
+    def mark_opts
+      mark_ = mark
+      if mark_ && !mark_.zero?
+        if @opts[:mark]
+          then @opts[:mark] = @opts[:mark].xor(mark_)
+          else @opts[:mark] = mark_ end
+      end
+    end
+
     def handle_exception(name, meth, k, chunk, e)
       if log
         trace = ''
@@ -269,20 +296,21 @@ module Andromeda
       if dest.kind_of?(Dest)
         self.emit = dest
         dest.base
-      else 
-        self.emit = dest.entry 
+      else
+        self.emit = dest.entry
         dest
-      end      
+      end
     end
 
-    def drop ; self.emit = nil end
+    def start ; entry.intern(nil) end
+    def entry ; enter end
+    def exit ; emit end
+    def drop ; emit = nil end
 
-    def entry ; dest(:enter) end
-    alias_method :exit, :emit
-
-    def <<(chunk, opts = {}) ; entry.<< chunk, opts end
-    def submit(chunk, opts = {}) ; entry.submit chunk, opts end
-    def submit_now(chunk, opts = {}) ; entry.submit_now chunk, opts end
-    def submit_to(target_pool, chunk, opts = {}) ; entry.submit_to target_pool, chunk, opts end
+    def <<(chunk, opts = {}) ; start.<< chunk, opts end
+    def submit(chunk, opts = {}) ; start.submit chunk, opts end
+    def submit_now(chunk, opts = {}) ; start.submit_now chunk, opts end
+    def submit_to(target_pool, chunk, opts = {}) ; start.submit_to target_pool, chunk, opts end
   end
+
 end

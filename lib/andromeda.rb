@@ -1,3 +1,4 @@
+require 'set'
 require 'json'
 require 'logger'
 require 'threadpool'
