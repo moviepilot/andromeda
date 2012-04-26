@@ -4,7 +4,7 @@
 #  - Make nice slideshow and become very famous and rich. yay!
 module Andromeda
 
-  class Stage
+  class ProtoStage    
 
     extend ClassAttr
 
@@ -43,83 +43,53 @@ module Andromeda
       name_attr_set '@signal_names', *names
     end
 
-    attr_reader :id
-
-    meth_dest :enter
-    attr_dest :emit
-
-    attr_accessor :log
-    attr_accessor :mark
-    attr_accessor :nick
+    attr_reader   :id
     attr_accessor :pool
 
-    attr_accessor :error_level
-
-    attr_accessor :trace_enter
-    attr_accessor :trace_pool
-    attr_accessor :trace_opts
-    attr_accessor :trace_exit
-
-
     def initialize(config = {})
-      @id            = Id.gen
+      @id     = Id.gen
       set_from_config init_from_config, config
-      @trace_enter ||= init_trace_hash :enter
-      @trace_pool  ||= init_trace_hash :pool
-      @trace_opts  ||= init_trace_hash :opts
-      @trace_exit  ||= init_trace_hash :emit
-      @pool        ||= init_pool_config
-      @opts        ||= {}
-      @pool        ||= :local
-      @error_level ||= :error
+      @pool ||= init_pool_config
+      @opts ||= {}
+      @pool ||= :local
     end
 
     def initialize_copy(other)
-      super other
-      @trace_enter = @trace_enter.clone unless @trace_enter.is_a?(Symbol)
-      @trace_pool  = @trace_pool.clone unless @trace_pool.is_a?(Symbol)
-      @trace_opts  = @trace_opts.clone unless @trace_opts.is_a?(Symbol)
-      @trace_exit  = @trace_exit.clone unless @trace_exit.is_a?(Symbol)
-      @opts        = @opts.clone
+      @opts = @opts.clone
     end
+
+    def init_from_config ; [:readers, :writers] end
+    def init_pool_config ; :local end
+
+    def opts ; @opts end
+    def ident ; id.to_s true end
 
     def pool=(pool_descr)
       @pool = make_pool pool_descr
     end
 
-    def init_trace_hash(kind) ; {} end
-    def init_pool_config ; :local end
-    def init_from_config ; [:readers, :writers] end
-
-    def opts ; @opts end
-    def log ; @log = Logger.new(STDERR) unless @log ; @log end
-    def mark ; @mark = Id.zero unless @mark ; @mark end
-
-    def chunk_map(name, chunk) ; chunk end
+    def map_chunk(name, chunk) ; chunk end
     def chunk_key(name, chunk) ; name end
     def chunk_val(name, chunk) ; chunk end
-    def chunk_flt(name, key, val, opts) ; false end
-
-    def on_enter(k, c) ; emit << c rescue nil end
+    def set_opts!(name, chunk, key, val, opts) ; nil end
+    def flt_input(name, chunk, key, val, opts) ; false end
 
     def handle_chunk(pool_descr, name, meth, chunk, opts_in)
-      c = chunk_map name, chunk
+      c = map_chunk name, chunk
       k = chunk_key name, c
       v = chunk_val name, c
       p = target_pool pool_descr, k
       f = should_clone? p, k
       t = if f then clone else self end
+      set_opts! name, c, k, v, opts_in
       t.opts.tap do |o|
         o.update opts_in
         o[:scope] ||= Scope.new
-        o[:mark]  ||= Id.zero
         o[:name]    = name
-        t.submit_chunk p, meth, f, k, v, o unless chunk_flt(name, k, v, o)
+        t.submit_chunk p, meth, f, k, v, o unless flt_input(name, c, k, v, o)
         return o
       end
     end
-
-    def intern(dest) ; if dest then dest.intern(self) else nil end end
 
     def dest(name)
       if self.respond_to?(name)
@@ -131,11 +101,40 @@ module Andromeda
       end
     end
 
-    def ident
-      if nick
-        then "#{self.class}(#{id.to_s(true)}, nick: #{nick})" 
-        else "#{self.class}(#{id.to_s(true)})" end
+    def call_inline(dest, k, c)
+      raise ArgumenError, "Invalid destination" unless dest.kind_of?(Dest)
+      raise ArgumenError, "Cannot call_inline for other base" unless dest.base == self
+      send_chunk dest.name, dest.meth, k, c    
     end
+
+    def dest_name?(name) ; destination_names.include? name end
+    def signal_name?(name) ; signal_names.include? name end
+
+    def destination_names ; self.class.destination_names end    
+    def signal_names ; self.class.signal_names end
+
+    def current_scope ;  opts[:scope] end
+    def current_name ;  opts[:name] end
+
+    def >>(dest)
+      if dest.kind_of?(Dest)
+        self.emit = dest
+        dest.base
+      else
+        self.emit = dest.entry
+        dest
+      end
+    end
+
+    def start ; entry.intern(nil) end
+    def entry ; enter end
+    def exit ; emit end
+    def drop ; emit = nil end
+
+    def <<(chunk, opts = {}) ; start.<< chunk, opts end
+    def submit(chunk, opts = {}) ; start.submit chunk, opts end
+    def submit_now(chunk, opts = {}) ; start.submit_now chunk, opts end
+    def submit_to(target_pool, chunk, opts = {}) ; start.submit_to target_pool, chunk, opts end
 
     protected
 
@@ -155,6 +154,18 @@ module Andromeda
       end
     end
 
+    def intern(dest) ; if dest then dest.intern(self) else nil end end
+
+    def signal_error(e) ; raise e end
+
+    def make_pool(p) ; PoolSupport.make_pool p end
+
+    def should_clone?(pool, k)
+      return true if pool == :local
+      return true if (begin pool.respond_to?(:max) && pool.max > 1 rescue false end)
+      false
+    end
+
     def target_pool(pool_descr, key)
       p = if pool_descr then pool_descr else pool end
       p = :local unless p
@@ -163,12 +174,57 @@ module Andromeda
       p
     end
 
-    def make_pool(p) ; PoolSupport.make_pool p end
+  end
 
-    def should_clone?(pool, k)
-      return true if pool == :local
-      return true if (begin pool.respond_to?(:max) && pool.max > 1 rescue false end)
-      false
+  class Stage < ProtoStage
+
+    meth_dest :enter
+    attr_dest :errors
+    attr_dest :emit
+
+    signal_dest :errors
+
+    attr_accessor :log
+    attr_accessor :mark
+    attr_accessor :nick
+
+    attr_accessor :error_level
+
+    attr_accessor :trace_enter
+    attr_accessor :trace_pool
+    attr_accessor :trace_opts
+    attr_accessor :trace_exit
+
+
+    def initialize(config = {})
+      super config
+      @trace_enter ||= init_trace_hash :enter
+      @trace_pool  ||= init_trace_hash :pool
+      @trace_opts  ||= init_trace_hash :opts
+      @trace_exit  ||= init_trace_hash :emit
+      @error_level ||= :error
+    end
+
+    def initialize_copy(other)
+      super other
+      @trace_enter = @trace_enter.clone unless @trace_enter.is_a?(Symbol)
+      @trace_pool  = @trace_pool.clone unless @trace_pool.is_a?(Symbol)
+      @trace_opts  = @trace_opts.clone unless @trace_opts.is_a?(Symbol)
+      @trace_exit  = @trace_exit.clone unless @trace_exit.is_a?(Symbol)
+    end
+
+    def tap ; yield self end
+
+    def log ; @log = Logger.new(STDERR) unless @log ; @log end
+    def mark ; @mark = Id.zero unless @mark ; @mark end
+
+    def on_enter(k, c) ; emit << c rescue nil end
+
+    def ident
+      id_str = super
+      if nick
+        then "#{self.class}(#{id_str}, nick: #{nick})" 
+        else "#{self.class}(#{id_str})" end
     end
 
     def submit_chunk(p, meth, was_cloned, k, chunk, o)
@@ -197,6 +253,16 @@ module Andromeda
           scope.leave if scope
         end
       end
+    end
+
+    protected
+
+    def init_trace_hash(kind) ; {} end
+
+    def signal_error(e)      
+      if (d = errors)
+        then d << e
+        else super e end
     end
 
     def run_chunk(pool, scope, name, meth, k, chunk, &thunk)
@@ -232,21 +298,25 @@ module Andromeda
     end
 
     def send_chunk(name, meth, k, chunk)
-      mark_opts
+      mark_txn
       self.send meth, k, chunk
     end
 
-    def check_mark
-      m = @opts[:mark]
-      raise RuntimeError, 'Invalid mark' if m && !m.zero?
+    def reset_txn(new_txn) ; opts[:txn] = if new_txn then new_txn else Id.zero end end
+    def txn ; opts[:txn] end
+
+    def check_txn
+      txn_ = current_txn
+      raise RuntimeError, 'Invalid mark' if txn_ && !txn_.zero?
     end
 
-    def mark_opts
-      mark_ = mark
+    def mark_txn
+      mark_= mark
       if mark_ && !mark_.zero?
-        if @opts[:mark]
-          then @opts[:mark] = @opts[:mark].xor(mark_)
-          else @opts[:mark] = mark_ end
+        txn_ = txn
+        if txn_
+          then reset_txn txn_.xor(mark_)
+          else reset_txn mark_ end
       end
     end
 
@@ -263,37 +333,6 @@ module Andromeda
       end
     end
 
-    public
-
-    def dest_name?(name) ; destination_names.include? name end
-    def signal_name?(name) ; signal_names.include? name end
-
-    def destination_names ; self.class.destination_names end    
-    def signal_names ; self.class.signal_names end
-
-    def current_scope ;  opts[:scope] end
-    def current_name ;  opts[:name] end
-    def current_mark ;  opts[:mark] end
-
-    def >>(dest)
-      if dest.kind_of?(Dest)
-        self.emit = dest
-        dest.base
-      else
-        self.emit = dest.entry
-        dest
-      end
-    end
-
-    def start ; entry.intern(nil) end
-    def entry ; enter end
-    def exit ; emit end
-    def drop ; emit = nil end
-
-    def <<(chunk, opts = {}) ; start.<< chunk, opts end
-    def submit(chunk, opts = {}) ; start.submit chunk, opts end
-    def submit_now(chunk, opts = {}) ; start.submit_now chunk, opts end
-    def submit_to(target_pool, chunk, opts = {}) ; start.submit_to target_pool, chunk, opts end
   end
 
 end

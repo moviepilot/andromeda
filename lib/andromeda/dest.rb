@@ -36,6 +36,11 @@ module Andromeda
     def intern(new_caller)
       if here == new_caller then self else Dest.new base, name, meth, new_caller end
     end
+
+    def call_inline(k, c)
+      raise ArgumenError, "Cannot call_inline to different Stage" unless base == here
+      base.call_inline self, k, c
+    end
   end
 
 end

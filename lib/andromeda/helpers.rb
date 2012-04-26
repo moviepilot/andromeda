@@ -62,13 +62,18 @@ module Andromeda
 		end
 	end
 
-	class HashRouter < Switch
-		def chunk_key(name, c) ; c[:key] end
-		def chunk_val(name, key, c) ; c[:val] end
-	end
-
 	class FifoStage < Stage
 		def init_pool_config ; :fifo end
+	end
+
+	class SingleStage < Stage
+		def init_pool_config ; :single end
+	end
+
+	class InlineKeyRouter < SingleStage
+		def on_enter(k, c)
+			dest(k).call_inline k, c
+		end
 	end
 
 	class Gatherer < Stage
