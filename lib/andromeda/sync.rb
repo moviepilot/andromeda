@@ -1,6 +1,6 @@
 module Andromeda
 
-	class Join < Base
+	class Join < Stage
 
 		def initialize(config = {})
 			super config
@@ -49,13 +49,13 @@ module Andromeda
 
 	# Passes all input and waits for the associated scope to return to the start value
 	# (will only work if there is no concurrent modification to the associated scope)
-	class ScopeWaiter < Base
+	class ScopeWaiter < Stage
 
 		def on_enter(k, v)
-			scope = opts[:scope]
-			value = scope.value
+			scope_ = current_scope
+			value_ = scope_.value
 			super k, v
-			scope.wait_for value
+			scope_.wait_for value_
 		end
 
 	end	

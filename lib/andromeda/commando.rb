@@ -1,6 +1,6 @@
 module Andromeda
 
-	class CommandoBase < Base
+	class CommandoStage < Stage
 		attr_reader :file
 		attr_reader :path
 	end
@@ -22,7 +22,7 @@ module Andromeda
 		def to_s ; as_json.to_json end
 	end
 
-	class CommandoWriter < CommandoBase
+	class CommandoWriter < CommandoStage
 
 		def initialize(config = {})
 			super config
@@ -57,7 +57,7 @@ module Andromeda
 		end
 	end
 
-	class CommandoParser < CommandoBase
+	class CommandoParser < CommandoStage
 
 		def initialize(config = {})
 			super config

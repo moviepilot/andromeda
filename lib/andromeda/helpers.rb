@@ -1,14 +1,18 @@
 module Andromeda
 
-	class Transf < Base
+	class Transf < Stage
 		attr_accessor :filter
 		attr_accessor :mapper
 
-		def send_chunk(meth, k, chunk)
-			filter_ = filter
-			mapper_ = mapper
-			if !(filter_ && filter_.call(chunk))
-				super meth, k, if mapper_ then mapper_.call(chunk) else chunk end
+		def send_chunk(name, meth, k, chunk)
+			if signal_name?(name)
+				super name, meth, k, chunk
+			else
+				filter_ = filter
+				mapper_ = mapper
+				if !(filter_ && filter_.call(chunk))
+					super name, meth, k, if mapper_ then mapper_.call(chunk) else chunk end
+				end
 			end
 		end		
 	end
@@ -29,13 +33,13 @@ module Andromeda
 			log_   = log
 			level_ = level
 			sleep delay.to_i if delay
-			log_.send level, "Andromeda::TEE ident: #{ident} key: #{k} chunk: #{c} opts: #{opts}" if log_ && level_
+			log_.send level, "TEE #{ident}.#{current_name}, key: #{k} chunk: #{c} opts: #{opts}" if log_ && level_
 			other << c rescue nil
 			super k, c
 		end
 	end
 
-	class TargetBase < Transf
+	class Targeting < Transf
 		attr_accessor :targets
 
 		def initialize(config = {})
@@ -46,34 +50,36 @@ module Andromeda
 		def target_values ; t = targets ; t.values rescue t end
 	end
 
-	class Broadc < TargetBase
+	class Broadc < Targeting
 		def on_enter(k, c)
 			target_values { |t| intern(t) << o rescue nil }
 		end		
 	end
 
-	class Switch < TargetBase
+	class Switch < Targeting
 		def on_enter(k, c)
 			(intern(k) rescue emit) << c rescue nil
 		end
 	end
 
-	class Router < Switch
+	class HashRouter < Switch
 		def chunk_key(name, c) ; c[:key] end
 		def chunk_val(name, key, c) ; c[:val] end
 	end
 
-	class FifoBase < Base
+	class FifoStage < Stage
 		def init_pool_config ; :fifo end
 	end
 
-	class GathererBase < Base
+	class Gatherer < Stage
 		def init_pool_config ; :single end
 	end
 
-	class Reducer < GathererBase
+	class Reducer < Gatherer
 		attr_accessor :state
-		attr_accessor :reducer
+		attr_accessor :reducer		
+
+		meth_dest :new_state
 
 		def on_enter(k, c)
 			reducer_ = reducer
@@ -82,8 +88,12 @@ module Andromeda
 			new_     = reducer_.call state_, k, c
 			unless new_ == state_
 				state = new_
-				super k, new_ 
+				new_state.submit_now state
 			end
+		end
+
+		def on_new_state(k, c)
+			self.emit.submit_now c rescue nil
 		end
 	end
 

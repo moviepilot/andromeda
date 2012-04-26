@@ -14,9 +14,9 @@ Below is an example that writes events to a file and reads them back in, to give
     w << :close
 
     r = Andromeda::CommandParser.new path: '/tmp/some_file'
-    # make r process events using a global thread pool of num_cpus threads
-    r.pool = :shared
     t = Andromeda::Tee.new
+    # make t process events using a global thread pool of num_cpus threads
+    t.pool = :shared
     # make r output to t
     r >> t
     # start reading

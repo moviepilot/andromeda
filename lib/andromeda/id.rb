@@ -60,10 +60,10 @@ module Andromeda
 	    Id.new r.length, false, r
 	  end
 
-	  def to_s
-	    r = "#<#{self.class}:"
+	  def to_s(short = false)
+	    r = if short then 'id: ' else "#<#{self.class}:" end
 	    each { |b| r << Id.twochars(b.to_s(16)) }
-	    r << '>'
+	    r << '>' unless short
 	    r
 	  end
 

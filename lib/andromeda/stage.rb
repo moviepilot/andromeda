@@ -1,66 +1,19 @@
 # TODO
 #  - Write tests
-#  - Write docs, add yard support for documenting bases, attrs, etc.
+#  - Write docs, add yard support for documenting stages, attrs, etc.
 #  - Make nice slideshow and become very famous and rich. yay!
 module Andromeda
 
-  class Dest
-    attr_reader :base
-    attr_reader :name
-    attr_reader :meth
-    attr_reader :here # "calling base"
+  class Stage
 
-    def initialize(base, name, meth, here)
-      raise ArgumentError, "#{base} is not a Base" unless base.kind_of?(Base)
-      raise ArgumentError, "#{name} is not a symbol" unless name.kind_of?(Symbol)
-      raise ArgumentError, "#{meth} is not a symbol" unless meth.kind_of?(Symbol)
-      raise NoMethodError, "#{base} does not respond to #{meth}'" unless base.respond_to?(meth)
-      raise ArgumentError, "#{here} is neither nil nor a Base" unless !here || here.kind_of?(Base)
-      @base = base
-      @meth = meth
-      @name = name
-      @here = here
-    end
+    extend ClassAttr
 
-    def <<(chunk, opts_in = {}) ; submit chunk, opts_in ; self end
-
-    def submit(chunk, opts_in = {}) ; submit_to nil, chunk, opts_in end
-    def submit_now(chunk, opts_in = {}) ; submit_to :local, chunk, opts_in end
-
-    def submit_to(target_pool, chunk, opts_in = {})
-       o = here.opts.clone.update(opts_in) rescue opts_in
-       base.handle_chunk target_pool, name, meth, chunk, o
-    end
-
-    def start ; entry.intern(nil) end
-
-    def entry ; self end
-    def exit ; base.exit end
-
-    def intern(new_caller)
-      if here == new_caller then self else Dest.new base, name, meth, new_caller end
-    end
-  end
-
-  class Base
-
-    def self.destinations(inherit = true)
-      s = if instance_variable_defined?('@destinations')
-            then instance_variable_get('@destinations')
-            else Set.new end
-      if inherit
-        c = self
-        while (c = c.superclass)
-          s = s.union c.destinations(false) rescue s
-        end
-      end
-      s
+    def self.destination_names(inherit = true)
+      get_attr_set '@destination_names', inherit 
     end
 
     def self.name_dest(*names)
-      name_set = names.to_set
-      dest_set = destinations false
-      instance_variable_set '@destinations', dest_set.union(name_set)
+      name_attr_set '@destination_names', *names
     end
 
     def self.meth_dest(*names)
@@ -82,6 +35,14 @@ module Andromeda
       end
     end
 
+    def self.signal_names(inherit = true)
+      get_attr_set '@signal_names', inherit 
+    end
+
+    def self.signal_dest(*names)
+      name_attr_set '@signal_names', *names
+    end
+
     attr_reader :id
 
     meth_dest :enter
@@ -92,10 +53,13 @@ module Andromeda
     attr_accessor :nick
     attr_accessor :pool
 
+    attr_accessor :error_level
+
     attr_accessor :trace_enter
     attr_accessor :trace_pool
     attr_accessor :trace_opts
     attr_accessor :trace_exit
+
 
     def initialize(config = {})
       @id            = Id.gen
@@ -107,14 +71,15 @@ module Andromeda
       @pool        ||= init_pool_config
       @opts        ||= {}
       @pool        ||= :local
+      @error_level ||= :error
     end
 
     def initialize_copy(other)
       super other
-      @trace_enter = @trace_enter.clone
-      @trace_pools = @trace_pool.clone
-      @trace_opts  = @trace_opts.clone
-      @trace_exit  = @trace_exit.clone
+      @trace_enter = @trace_enter.clone unless @trace_enter.is_a?(Symbol)
+      @trace_pool  = @trace_pool.clone unless @trace_pool.is_a?(Symbol)
+      @trace_opts  = @trace_opts.clone unless @trace_opts.is_a?(Symbol)
+      @trace_exit  = @trace_exit.clone unless @trace_exit.is_a?(Symbol)
       @opts        = @opts.clone
     end
 
@@ -130,6 +95,7 @@ module Andromeda
     def log ; @log = Logger.new(STDERR) unless @log ; @log end
     def mark ; @mark = Id.zero unless @mark ; @mark end
 
+    def chunk_map(name, chunk) ; chunk end
     def chunk_key(name, chunk) ; name end
     def chunk_val(name, chunk) ; chunk end
     def chunk_flt(name, key, val, opts) ; false end
@@ -137,8 +103,9 @@ module Andromeda
     def on_enter(k, c) ; emit << c rescue nil end
 
     def handle_chunk(pool_descr, name, meth, chunk, opts_in)
-      k = chunk_key name, chunk
-      v = chunk_val name, chunk
+      c = chunk_map name, chunk
+      k = chunk_key name, c
+      v = chunk_val name, c
       p = target_pool pool_descr, k
       f = should_clone? p, k
       t = if f then clone else self end
@@ -164,9 +131,11 @@ module Andromeda
       end
     end
 
-    def destinations ; self.class.destinations end
-
-    def ident ; if nick then "#{id} (aka #{nick})" else "#{id}" end end
+    def ident
+      if nick
+        then "#{self.class}(#{id.to_s(true)}, nick: #{nick})" 
+        else "#{self.class}(#{id.to_s(true)})" end
+    end
 
     protected
 
@@ -211,10 +180,10 @@ module Andromeda
           opts_level  = trace_level(trace_opts, name)
           pool_level  = trace_level(trace_pool, name)
           exit_level  = trace_level(trace_exit, name)
-          meth_trace :enter, enter_level, name, meth, k, chunk if enter_level
-          pool_trace pool_level, name, meth, k, chunk, p if pool_level
           opts_trace :enter, opts_level, name, meth, k, chunk if opts_level
-          send_chunk meth, k, chunk
+          pool_trace pool_level, name, meth, k, chunk, p if pool_level
+          meth_trace :enter, enter_level, name, meth, k, chunk if enter_level
+          send_chunk name, meth, k, chunk
           meth_trace :exit, exit_level, name, meth, k, chunk if exit_level
         rescue Exception => e
           handle_exception name, meth, k, chunk, e
@@ -249,20 +218,20 @@ module Andromeda
 
     def meth_trace(kind, level, name, method, k, chunk)
       log_ = log
-      log_.send level, "METH #{ident}, :#{kind}, :#{name}, method: #{method}, key:, #{k}, chunk: #{chunk}" if log_
+      log_.send level, "METH:#{kind} #{ident}.#{name}, method: #{method}, key:, #{k}, chunk: #{chunk}" if log_
     end
 
     def pool_trace(level, name, method, k, chunk, p)
       log_ = log
-      log_.send level, "POOL #{ident}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, self_pool: #{self.pool}, pool: #{p}" if log_
+      log_.send level, "POOL #{ident}.#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, self_pool: #{self.pool}, pool: #{p}" if log_
     end
 
     def opts_trace(kind, level, name, method, k, chunk)
       log_ = log
-      log_.send level, "OPTS #{ident}, :#{kind}, :#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, opts: #{opts}" if log_
+      log_.send level, "OPTS:#{kind} #{ident}.#{name}, method: #{method}, key: #{k}, chunk: #{chunk}, opts: #{opts}" if log_
     end
 
-    def send_chunk(meth, k, chunk)
+    def send_chunk(name, meth, k, chunk)
       mark_opts
       self.send meth, k, chunk
     end
@@ -283,13 +252,28 @@ module Andromeda
 
     def handle_exception(name, meth, k, chunk, e)
       if log
-        trace = ''
+        trace   = ''
         e.backtrace.each { |s| trace << "\n    #{s}" }
-        log.error "Caught '#{e}' when processing key: #{k}, chunk: #{chunk} as dest: #{name} using meth: #{meth} with backtrace: #{trace}"
+        err_str = "#{ident} caught '#{e}' when processing :#{name}, method: #{meth}, key: #{k}, chunk: #{chunk}, backtrace: #{trace}"
+        begin          
+          log.send error_level, err_str 
+        rescue Exception => e2
+          log.error("Caught '#{e2}' during logging! Originally #{err_str}") rescue nil
+        end
       end
     end
 
     public
+
+    def dest_name?(name) ; destination_names.include? name end
+    def signal_name?(name) ; signal_names.include? name end
+
+    def destination_names ; self.class.destination_names end    
+    def signal_names ; self.class.signal_names end
+
+    def current_scope ;  opts[:scope] end
+    def current_name ;  opts[:name] end
+    def current_mark ;  opts[:mark] end
 
     def >>(dest)
       if dest.kind_of?(Dest)

@@ -3,7 +3,10 @@ module Andromeda
   # Helper class for easily obtaining a thread pool with num_processors threads
   class PoolSupport
     # @return [Fixnum] number of processors as determined by Facter
-    def self.num_processors ; Facter.sp_number_processors.strip.to_i end
+    def self.num_processors
+      @num_procs = Facter.sp_number_processors.strip.to_i unless defined?(@num_procs)
+      @num_procs
+    end
 
     # @return [ThreadPool] a new thread pool with num_processors threads
     def self.new_default_pool ; ThreadPool.new self.num_processors end
