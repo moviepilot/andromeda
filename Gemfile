@@ -7,6 +7,7 @@ gem 'atomic'
 
 group :development do
   gem 'rake'
+  gem 'maruku'
   gem 'yard'
   gem 'irbtools'
 end
@@ -14,14 +15,6 @@ end
 group :test do
   gem 'rspec', '2.6.0'
   gem 'simplecov'
-end
-
-platforms :jruby do
-  gem 'maruku'
-end
-
-platforms :mingw do
-  gem 'maruku'
 end
 
 platforms :ruby do
