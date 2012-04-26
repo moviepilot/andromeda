@@ -93,19 +93,14 @@ module Andromeda
 			cmd  = c.cmd
 			raise ArgumentError, "invalid commando" unless cmd.kind_of?(Symbol)
 			data = c.data
-			str  = if data then data.to_json else '' end
-			len  = str.length
-			len += 1 unless str.end_with?('\n')
+			str  = if data then data.to_json.dump else '' end
+			len  = str.length + 1
 			tim  = c.time if c.time
 			tim  = Time.now unless tim
 			tim  = tim.to_i unless tim.kind_of?(Fixnum)
-			file.write ">>> ANDROMEDA_COMMANDO START :#{cmd} TIME #{tim} LEN #{len.to_i}\n"
-			file.write(str) if data
-			if str.end_with?('\n')
-				file.write "<<< ANDROMEDA_COMMANDO END :#{cmd}\n"
-			else
-				file.write "\n<<< ANDROMEDA_COMMANDO END :#{cmd}\n"
-			end
+			file.write "<<< ANDROMEDA START :#{cmd} TIME #{tim} LEN #{len.to_i} >>>\n"
+			file.write str
+			file.write "\n<<< ANDROMEDA END :#{cmd} >>>\n"
 			super k, c
 		end
 
@@ -117,34 +112,58 @@ module Andromeda
 		end		
 	end
 
+	class CommandParser < FileReader
 
-	# 	def init_mode ; 'r' end
+		attr_reader :start_matcher
+		attr_reader :end_matcher
 
-	# 	def on_input(k, c)
-	# 		start   = c[:start]
-	# 		start ||= 0
-	# 		last    = c[:end]
-	# 		last  ||= end
+		def initialize(config = {})
+			@start_matcher   = /^<<< ANDROMEDA START :(\w+) TIME (\d+) LEN (\d+) >>>$/
+			@end_matcher     = /^<<< ANDROMEDA END :(\w+) >>>$/
+		end
 
+		def match_line(line)			
+			if (match = start_matcher.match(line)) then 
+				yield :start, ({ cmd: match[1].to_sym, tim: match[2].to_i, len: match[3].to_i })
+				return 
+			end
+			if (match = end_matcher.match(line)) then 
+				yield :end, match[1].to_sym
+				return 
+			end
+			yield :line, line
+		end
 
-	# 	end
+		def on_enter(k, c)
+			super k, c do |f|
+				fst = opts[:first]
+				lst = opts[:last]
 
-	# end
+				scan = :start
+				cur  = nil
 
+				while (line = file.gets)
+					match_line do |token, parts|
+						signal_error ArgumentException.new("Skipping unexpected token #{token} in line '#{line}' (wanted token from: #{scan})") unless token == scan
+						case token
+						when :start
+							scan = :line
+							cur  = parts
+						when :line
 
-	# class CommandoParser < CommandoStage
+						when :end
 
-	# 	def initialize(config = {})
-	# 		super config
-	# 		@file = File.open path, 'r'
-	# 	end
+						end
+					end
+				end
+			end
+		end
+
+	end
+
 
 	# 	def on_enter(k, c)
 	# 		parser        = dest(:parse)
-	# 		start_matcher = />>> ANDROMEDA_COMMANDO :(\w+) TIME (\d+) LEN (\d+) START/
-	# 		end_matcher   = /<<< ANDROMEDA_COMMANDO :(\w+) END/
-	# 		while (line = file.gets)
-	# 			line  = line.chomp
 	# 			match = start_matcher.match line
 	# 			if match
 	# 				cmd = match[1].to_sym

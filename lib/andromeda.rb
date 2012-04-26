@@ -6,6 +6,8 @@ require 'facter'
 require 'thread'
 Facter.loadfacts
 
+require 'andromeda/version'
+
 module Andromeda
 
 	def self.files
