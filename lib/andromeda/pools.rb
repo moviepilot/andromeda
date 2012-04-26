@@ -20,6 +20,12 @@ module Andromeda
     # @return [ThreadPool] of size 1
     def self.new_single_pool ; ThreadPool.new(1) end
 
+    # @return [ThreadPool] a globally shared thread pool with exactly one thread
+    def self.global_single_pool(reset = false)
+      @single_pool = self.new_single_pool unless @pool || reset
+      @single_pool
+    end
+
     # @return [ThreadPool] that guarantees fifo processing of requests
     def self.new_fifo_pool ; new_single_pool end
 
@@ -28,6 +34,7 @@ module Andromeda
     # @param [:local, :spawn, :single, :fifo, :default, :global, Object] pool_descr
     #     If pool_descr is :spawn, uses SpawnPool.default_pool.
     #     If pool_descr is :single, uses PoolSupport.new_single_pool.
+    #     If pool_descr is :default, uses PoolSupport.global_single_pool.
     #     If pool_descr is :fifo, uses PoolSupport.new_fifo_pool.
     #     If pool_descr is :shared, uses the globally shared PoolSupport.global_pool.
     #     If pool_descr is :num_cpus uses PoolSupport.new_default_pool.
