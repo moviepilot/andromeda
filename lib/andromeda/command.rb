@@ -7,18 +7,38 @@ module Andromeda
 
 		def initialize(cmd, data = {}, cmd_time = nil)
 			raise ArgumentError unless cmd.kind_of?(Symbol)
-			@cmd  = cmd
-			@data = data
-			@time = if cmd_time then cmd_time else Time.now.to_i end
+			@cmd     = cmd
+			@data    = data
+			@time    = if cmd_time then cmd_time else Time.now.to_i end			
+			@comment = nil
 		end
+
+		def comment ; @comment || ''  end
+		def comment=(str = nil) ;	@comment = str end
 
 		def if_cmd(sym) ; if sym == cmd then yield data else seld end end
 
-		def as_json ; { cmd: cmd, data: (data.as_json rescue data), time: time } end
+		def as_json
+			h = { cmd: cmd, data: (data.as_json rescue data), time: time } 
+			c = @comment
+			h[:comment] = c if c
+			h
+		end
+
 		def to_s ; as_json.to_json end
 
+		def with_comment(str = nil)
+			@comment = str
+			self
+		end
+
 		def self.new_input(cmd, data = {}, cmd_time = nil)
-			Command.new(:input, Command.new(cmd, data, cmd_time), cmd_time)
+			inner = Command.new cmd, data, cmd_time
+			Command.new :input, inner, cmd_time
+		end
+
+		def self.from_json(json)
+			Command.new json['cmd'].to_sym, json['data'], (json['time'] rescue nil)
 		end
 	end
 
@@ -28,11 +48,13 @@ module Andromeda
 		attr_reader :file
 
 		meth_dest :open
+		meth_dest :sync
 		meth_dest :close
 		meth_dest :input
 
 		signal_dest :open
 		signal_dest :close
+		signal_dest :sync
 
 		def map_chunk(name, c)
 			return c if c.kind_of?(Command)
@@ -42,7 +64,10 @@ module Andromeda
 
 		def chunk_key(name, c) ; c.cmd end
 		def chunk_val(name, c) ; c.data end
-		def set_opts!(name, c, k, v, opts_in) ; opts_in[:time] = c.time end
+		def set_opts!(name, c, k, v, opts_in)
+			opts_in[:time]    = c.time 
+			opts_in[:comment] = c.comment
+		end
 
 		def on_open(k, c)			
 			if @file
@@ -56,7 +81,11 @@ module Andromeda
 		end
 
 		def on_input(k, c)
-			emit << c rescue nil
+			exit << c rescue nil
+		end
+
+		def on_sync(k, c)
+			f = @file ;	sync_file f if f
 		end
 
 		def on_close(k, c)
@@ -75,7 +104,7 @@ module Andromeda
 
 		def close_file(f)
 			begin
-				sync_file(f)
+				sync_file f
 			ensure
 				f.close
 			end
@@ -86,21 +115,27 @@ module Andromeda
 
 	class CommandWriter < FileCommandStage
 
-		def init_mode ; 'w+' end
+		def init_mode ; 'w' end
 
 		def on_input(k, c)
 			signal_error ArgumentError.new("associated filed not open") unless file
 			cmd  = c.cmd
 			raise ArgumentError, "invalid commando" unless cmd.kind_of?(Symbol)
 			data = c.data
-			str  = if data then data.to_json.dump else '' end
+			str  = if data then data.to_json else '' end
 			len  = str.length + 1
 			tim  = c.time if c.time
 			tim  = Time.now unless tim
 			tim  = tim.to_i unless tim.kind_of?(Fixnum)
-			file.write "<<< ANDROMEDA START :#{cmd} TIME #{tim} LEN #{len.to_i} >>>\n"
-			file.write str
-			file.write "\n<<< ANDROMEDA END :#{cmd} >>>\n"
+			new_str = ''
+			str.each_line { |line| new_str << "... #{line}\n" }
+			str  = nil
+			len  = new_str.length
+			c    = opts[:comment]
+			c.each_line { |line| file.write "\# #{line}\n" } if c
+			file.write "<<< ANDROMEDA START :#{cmd} TIME #{tim} LEN #{len} >>>\n"
+			file.write new_str
+			file.write "<<< ANDROMEDA END :#{cmd} >>>\n"
 			super k, c
 		end
 
@@ -112,47 +147,71 @@ module Andromeda
 		end		
 	end
 
-	class CommandParser < FileReader
-
-		attr_reader :start_matcher
-		attr_reader :end_matcher
+	class CommandReader < FileReader
+		attr_reader :start_matcher, :end_matcher, :comment_matcher, :line_matcher
 
 		def initialize(config = {})
-			@start_matcher   = /^<<< ANDROMEDA START :(\w+) TIME (\d+) LEN (\d+) >>>$/
-			@end_matcher     = /^<<< ANDROMEDA END :(\w+) >>>$/
+			super config
+			@start_matcher   = /<<< ANDROMEDA START :(\w+) TIME (\d+) LEN (\d+) >>>/
+			@end_matcher     = /<<< ANDROMEDA END :(\w+) >>>/
+			@comment_matcher = /#(.*)/
+			# remember to change the offset for :line, too whenever you change this
+			@line_matcher    = /... (.*)/
 		end
 
-		def match_line(line)			
-			if (match = start_matcher.match(line)) then 
-				yield :start, ({ cmd: match[1].to_sym, tim: match[2].to_i, len: match[3].to_i })
-				return 
-			end
-			if (match = end_matcher.match(line)) then 
-				yield :end, match[1].to_sym
-				return 
-			end
-			yield :line, line
+		def match_line(state, line)			
+			m = @start_matcher.match line
+			return yield :start, state, ({ cmd: m[1].to_sym, tim: m[2].to_i, len: m[3].to_i }) if m
+			m = @end_matcher.match line
+			return yield :end, state, m[1].to_sym if m
+			m = @comment_matcher.match line 
+			return yield :comment, state, m[1] if m
+			m = @line_matcher.match line
+			return yield :line, state, m[1] if m
+			yield :garbage, state, line
 		end
 
 		def on_enter(k, c)
-			super k, c do |f|
+			super k, c do |file|
 				fst = opts[:first]
 				lst = opts[:last]
 
-				scan = :start
-				cur  = nil
-
+				state = { :comment => true, :start => true }			
 				while (line = file.gets)
-					match_line do |token, parts|
-						signal_error ArgumentException.new("Skipping unexpected token #{token} in line '#{line}' (wanted token from: #{scan})") unless token == scan
+					line = line.chomp
+					match_line(state, line) do |token, state, parts|
+						signal_error ArgumentError.new("Skipping unexpected token #{token} in line '#{line}' (state: #{state})") unless state[token]
 						case token
+						when :comment
+							if state[:comment_str] 
+								then state[:comment_str] << parts 
+								else state[:comment_str]  = parts end
 						when :start
-							scan = :line
-							cur  = parts
+							state.delete :comment
+							state.delete :start
+							state[:line]    = true
+							state[:end]     = true
+							parts[:data]    = ''
+							state[:len]     = 0
+							state[:cur]     = parts
+							parts[:comment] = state[:comment_str]
+							state.delete :comment_str
 						when :line
-
+							state[:len] += parts.length + 5
+							state[:cur][:data] << "#{parts}\n"
 						when :end
-
+							state.delete :line
+							state.delete :end
+							state[:start]   = true
+							state[:comment] = true
+							cur             = state[:cur]
+							data            = cur[:data]
+							signal_error ArgumentError.new("Start (#{cur[:cmd]}) and end (#{parts})command mismatch") unless cur[:cmd] == parts
+							signal_error ArgumentError.new("Length mismatch (expected: #{cur[:len]}, found: #{state[:len]})") unless cur[:len] == state[:len]
+							exit << cur rescue nil							
+						else
+							signal_error ArgumentError.new("Garbage encountered (line: '#{line}')")
+							return
 						end
 					end
 				end
@@ -161,40 +220,16 @@ module Andromeda
 
 	end
 
+	class CommandParser < Stage
 
-	# 	def on_enter(k, c)
-	# 		parser        = dest(:parse)
-	# 			match = start_matcher.match line
-	# 			if match
-	# 				cmd = match[1].to_sym
-	# 				tim = match[2].to_i
-	# 				len = match[3].to_i
-	# 				buf = if len == 0 then '' else file.gets end
-	# 				while buf.length < len
-	# 					log.debug line
-	# 					buf << line
-	# 				end
-	# 				line  = file.gets.chomp
-	# 				match = end_matcher.match line
-	# 				if match
-	# 					end_cmd = match[1].to_sym
-	# 					raise ArgumentError, "command name mismatch between START ('#{cmd}') and END ('#{end_cmd}')" unless cmd == end_cmd
-	# 					raise ArgumentError, "length mismatch" unless len == buf.length
-	# 					h = { :cmd => end_cmd, :data => buf, :time => tim }
-	# 					parser << h
-	# 				else
-	# 					raise ArgumentError, "garbage commando end: '#{line}'"
-	# 				end
-	# 			else
-	# 				raise ArgumentError, "garbage commando start: '#{line}'"
-	# 			end
-	# 		end
-	# 	end
+		def on_enter(k, c)
+			data = c[:data].chomp
+			data = JSON::parse(data)
+			cmd  = Command.new c[:cmd], data, c[:time]
+			rem  = c[:comment] rescue nil
+			cmd.with_comment rem if rem
+			exit << cmd rescue nil
+		end		
+	end
 
-	# 	def on_parse(k, c)
-	# 		data = c[:data]
-	# 		c[:data] = if data.chomp == '' then nil else JSON::parse(data) end
-	# 		emit << (Commando.new c[:cmd], c[:data], c[:time]) rescue nil
-	# 	end
-	# end
 end

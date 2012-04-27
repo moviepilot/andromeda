@@ -1,3 +1,5 @@
+require 'rubygems'
+
 require 'set'
 require 'json'
 require 'logger'
@@ -35,5 +37,5 @@ module Andromeda
 
 end
 
-Andromeda.files.each { |f| require_relative f }
+Andromeda.files.each { |f| require f }
 

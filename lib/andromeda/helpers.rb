@@ -1,5 +1,7 @@
 module Andromeda
 
+	def self.mk_tee(config = {}) ; Andromeda::Tee.new(config) end
+
 	class Transf < Stage
 		attr_accessor :filter
 		attr_accessor :mapper
@@ -58,7 +60,7 @@ module Andromeda
 
 	class Switch < Targeting
 		def on_enter(k, c)
-			(intern(k) rescue emit) << c rescue nil
+			(intern(k) rescue exit) << c rescue nil
 		end
 	end
 
@@ -98,7 +100,7 @@ module Andromeda
 		end
 
 		def on_new_state(k, c)
-			self.emit.submit_now c rescue nil
+			self.exit.submit_now c rescue nil
 		end
 	end
 
@@ -145,7 +147,7 @@ module Andromeda
 				while fst <= lst
 					nxt = fst + sz
 					nxt = lst if nxt > lst 
-					emit << Range.new(fst, nxt)
+					exit << Range.new(fst, nxt)
 					fst = nxt + 1
 				end
 			end

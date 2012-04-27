@@ -43,6 +43,17 @@ module Andromeda
       name_attr_set '@signal_names', *names
     end
 
+    def self.clone_or_self(o)
+      begin
+        return nil if o.nil?
+        return o if o.kind_of?(Symbol)
+        return o if o.kind_of?(Numeric)
+        o.clone
+      rescue Exception => e
+        o
+      end
+    end
+
     attr_reader   :id
     attr_accessor :pool
 
@@ -55,7 +66,8 @@ module Andromeda
     end
 
     def initialize_copy(other)
-      @opts = @opts.clone
+      @opts   = clone_or_self @opts
+      @opts ||= {}
     end
 
     def init_from_config ; [:readers, :writers] end
@@ -65,7 +77,9 @@ module Andromeda
     def ident ; id.to_s true end
 
     def pool=(pool_descr)
-      @pool = make_pool pool_descr
+      pool_descr = pool_descr.entry if pool_descr.kind_of?(Stage)
+      pool_descr = pool_descr.base.pool if pool_descr.kind_of?(Dest)
+      @pool      = make_pool pool_descr
     end
 
     def map_chunk(name, chunk) ; chunk end
@@ -128,7 +142,6 @@ module Andromeda
 
     def start ; entry.intern(nil) end
     def entry ; enter end
-    def exit ; emit end
     def drop ; emit = nil end
 
     def <<(chunk, opts = {}) ; start.<< chunk, opts end
@@ -137,6 +150,12 @@ module Andromeda
     def submit_to(target_pool, chunk, opts = {}) ; start.submit_to target_pool, chunk, opts end
 
     protected
+
+    attr_dest :emit
+
+    def exit ; emit end
+
+    def clone_or_self(o) ; self.class.clone_or_self o end
 
     def set_from_config(what, config = {})
       init_readers = what.include? :readers
@@ -167,10 +186,10 @@ module Andromeda
     end
 
     def target_pool(pool_descr, key)
-      p = if pool_descr then pool_descr else pool end
-      p = :local unless p
-      p = make_pool p
-      p = p.key_pool(key) if p.respond_to?(:key_pool)
+      p  = if pool_descr then pool_descr else pool end
+      p  = :local unless p
+      p  = make_pool p
+      p  = p.key_pool(key) if p.respond_to?(:key_pool)
       p
     end
 
@@ -180,7 +199,6 @@ module Andromeda
 
     meth_dest :enter
     attr_dest :errors
-    attr_dest :emit
 
     signal_dest :errors
 
@@ -207,10 +225,10 @@ module Andromeda
 
     def initialize_copy(other)
       super other
-      @trace_enter = @trace_enter.clone unless @trace_enter.is_a?(Symbol)
-      @trace_pool  = @trace_pool.clone unless @trace_pool.is_a?(Symbol)
-      @trace_opts  = @trace_opts.clone unless @trace_opts.is_a?(Symbol)
-      @trace_exit  = @trace_exit.clone unless @trace_exit.is_a?(Symbol)
+      @trace_enter = clone_or_self @trace_enter
+      @trace_pool  = clone_or_self @trace_pool
+      @trace_opts  = clone_or_self @trace_opts
+      @trace_exit  = clone_or_self @trace_exit
     end
 
     def tap ; yield self end
@@ -218,7 +236,7 @@ module Andromeda
     def log ; @log = Logger.new(STDERR) unless @log ; @log end
     def mark ; @mark = Id.zero unless @mark ; @mark end
 
-    def on_enter(k, c) ; emit << c rescue nil end
+    def on_enter(k, c) ; exit << c rescue nil end
 
     def ident
       id_str = super
