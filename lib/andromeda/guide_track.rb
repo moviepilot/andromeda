@@ -52,7 +52,9 @@ module Andromeda
 
       def follow(scope, *args, &thunk) ; dispatch(scope, *args, &thunk) end
 
-      protected
+      def process(&thunk)
+        thunk.call
+      end
 
       def dispatch(scope, *args, &thunk)
         scope.enter
@@ -70,6 +72,9 @@ module Andromeda
           raise
         end
       end
+
+      protected :process
+      protected :dispatch
     end
 
     class SpawnGuide < Guide
