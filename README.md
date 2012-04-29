@@ -27,3 +27,26 @@ There is much more, dig the source, luke!
 
 *Note* All active development happens on the devel branch, cf. boggle/devel, too.
 
+# Concepts
+
+
+# Nouns
+
+* *Data*
+** *Label*
+** *Value*
+** *Tags*
+*** *Region*
+*** *Marker*
+* *Spot*
+* *Plan*
+* *Guide*
+* *Track*
+
+# Verbs
+
+* Snapshot
+* Send
+* Wrap/Unwrap
+* Prepare
+

@@ -9,7 +9,7 @@ module Andromeda
 			raise ArgumentError unless cmd.kind_of?(Symbol)
 			@cmd     = cmd
 			@data    = data
-			@time    = if cmd_time then cmd_time else Time.now.to_i end			
+			@time    = if cmd_time then cmd_time else Time.now.to_i end
 			@comment = nil
 		end
 
@@ -19,7 +19,7 @@ module Andromeda
 		def if_cmd(sym) ; if sym == cmd then yield data else seld end end
 
 		def as_json
-			h = { cmd: cmd, data: (data.as_json rescue data), time: time } 
+			h = { cmd: cmd, data: (data.as_json rescue data), time: time }
 			c = @comment
 			h[:comment] = c if c
 			h
@@ -42,7 +42,7 @@ module Andromeda
 		end
 	end
 
-	class FileCommandStage < InlineKeyRouter
+	class FileCommandPlan < InlineKeyRouter
 		attr_reader :path
 		attr_reader :mode
 		attr_reader :file
@@ -65,11 +65,11 @@ module Andromeda
 		def chunk_key(name, c) ; c.cmd end
 		def chunk_val(name, c) ; c.data end
 		def set_opts!(name, c, k, v, opts_in)
-			opts_in[:time]    = c.time 
+			opts_in[:time]    = c.time
 			opts_in[:comment] = c.comment
 		end
 
-		def on_open(k, c)			
+		def on_open(k, c)
 			if @file
 				signal_error ArgumentError.new("associated file already open")
 			else
@@ -98,7 +98,7 @@ module Andromeda
 			else
 				signal_error ArgumentError.new("associated file not open")
 			end
-		end		
+		end
 
 		protected
 
@@ -113,7 +113,7 @@ module Andromeda
 		def sync_file(f) ; end
 	end
 
-	class CommandWriter < FileCommandStage
+	class CommandWriter < FileCommandPlan
 
 		def init_mode ; 'w' end
 
@@ -144,7 +144,7 @@ module Andromeda
 		def sync_file(f)
 			f.sync
 			f.fsync rescue nil
-		end		
+		end
 	end
 
 	class CommandReader < FileReader
@@ -159,12 +159,12 @@ module Andromeda
 			@line_matcher    = /... (.*)/
 		end
 
-		def match_line(state, line)			
+		def match_line(state, line)
 			m = @start_matcher.match line
 			return yield :start, state, ({ cmd: m[1].to_sym, tim: m[2].to_i, len: m[3].to_i }) if m
 			m = @end_matcher.match line
 			return yield :end, state, m[1].to_sym if m
-			m = @comment_matcher.match line 
+			m = @comment_matcher.match line
 			return yield :comment, state, m[1] if m
 			m = @line_matcher.match line
 			return yield :line, state, m[1] if m
@@ -176,15 +176,15 @@ module Andromeda
 				fst = opts[:first]
 				lst = opts[:last]
 
-				state = { :comment => true, :start => true }			
+				state = { :comment => true, :start => true }
 				while (line = file.gets)
 					line = line.chomp
 					match_line(state, line) do |token, state, parts|
 						signal_error ArgumentError.new("Skipping unexpected token #{token} in line '#{line}' (state: #{state})") unless state[token]
 						case token
 						when :comment
-							if state[:comment_str] 
-								then state[:comment_str] << parts 
+							if state[:comment_str]
+								then state[:comment_str] << parts
 								else state[:comment_str]  = parts end
 						when :start
 							state.delete :comment
@@ -208,7 +208,7 @@ module Andromeda
 							data            = cur[:data]
 							signal_error ArgumentError.new("Start (#{cur[:cmd]}) and end (#{parts})command mismatch") unless cur[:cmd] == parts
 							signal_error ArgumentError.new("Length mismatch (expected: #{cur[:len]}, found: #{state[:len]})") unless cur[:len] == state[:len]
-							exit << cur rescue nil							
+							exit << cur rescue nil
 						else
 							signal_error ArgumentError.new("Garbage encountered (line: '#{line}')")
 							return
@@ -220,7 +220,7 @@ module Andromeda
 
 	end
 
-	class CommandParser < Stage
+	class CommandParser < Plan
 
 		def on_enter(k, c)
 			data = c[:data].chomp
@@ -229,7 +229,7 @@ module Andromeda
 			rem  = c[:comment] rescue nil
 			cmd.with_comment rem if rem
 			exit << cmd rescue nil
-		end		
+		end
 	end
 
 end

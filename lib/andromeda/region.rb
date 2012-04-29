@@ -2,9 +2,10 @@ require 'atomic'
 
 module Andromeda
 
-	class Scope
+	class Region
 
 		def initialize(init_value = 0)
+			init_value = init_value[:init_value].to_i if init_value.kind_of?(Hash)
 			raise ArgumentError unless init_value.kind_of?(Fixnum)
 			@count = Atomic.new init_value
 		end
