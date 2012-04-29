@@ -3,6 +3,7 @@ source "http://rubygems.org"
 gem 'json', '>=1.6.5'
 gem 'atomic'
 gem 'facter'
+gem 'statval'
 gem 'threadpool'
 
 group :development do
