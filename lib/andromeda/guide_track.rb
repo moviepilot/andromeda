@@ -3,25 +3,36 @@ module Andromeda
   module Guides
 
   	class Guide
+      include Andromeda::Impl::To_S
+
       def track(spot, label, suggested_track = nil)
         raise NoMethodError
       end
 
       def provision(track, tags_in)
         tags_out = Hash.new
-        tags_out[:region] = Scope.new unless tags_in[:scope]
+        tags_out[:scope] = ::Andromeda::Atom::Region.new unless tags_in[:scope]
         tags_out
       end
 
-      def pack(track, was_suggested = false)
-        return plan.copy if was_suggested
-        if plan.frozen? then plan else plan.copy end
+      def pack(plan, track, was_suggested = false)
+        return plan.identical_copy if was_suggested
+        if plan.frozen? then plan else plan.identical_copy end
       end
 
   	end
 
     class Track
-      def follow(*args, &thunk) ; thunk.call *args end
+      include Andromeda::Impl::To_S
+
+      def follow(scope, *args, &thunk)
+        scope.enter
+        begin
+          thunk.call *args
+        ensure
+          scope.leave
+        end
+      end
     end
 
     class LocalGuide < Guide
@@ -37,20 +48,45 @@ module Andromeda
       include Singleton
     end
 
+    module DispatchingTrack
+
+      def follow(scope, *args, &thunk) ; dispatch(scope, *args, &thunk) end
+
+      protected
+
+      def dispatch(scope, *args, &thunk)
+        scope.enter
+        begin
+          process do
+            begin
+              thunk.call *args
+            ensure
+              scope.leave
+            end
+          end
+        rescue
+          # In case Thread.new fails
+          scope.leave
+          raise
+        end
+      end
+    end
+
     class SpawnGuide < Guide
       include Singleton
 
       def track(spot, label, suggested_track = nil)
-        SpawnGuide.instance
+        SpawnTrack.instance
       end
     end
 
     class SpawnTrack < Track
       include Singleton
+      include DispatchingTrack
 
-      def follow(*args, &thunk)
-        Thread.new { || thunk.call *args }
-      end
+      protected
+
+      def process(&thunk) ; Thread.new { || Thread.current; thunk.call } end
     end
 
   end

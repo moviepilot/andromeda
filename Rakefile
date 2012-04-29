@@ -15,14 +15,11 @@ end
 
 desc 'Run yardoc over project sources'
 YARD::Rake::YardocTask.new(:ydoc) do |t|
-  t.options = ['--verbose']	
+  t.options = ['--verbose']
   t.files   = ['lib/**/*.rb', '-', 'README.md', 'AUTHORS', 'LICENSE.txt']
+  t.files  << 'CHANGELOG.md'
+  t.files  << 'ROADMAP.md'
 end
-
-#RDoc::Task.new(:rdoc) do |rdoc|
-#  # rdoc.main = "README.rdoc"
-#  rdoc.rdoc_files.include("lib/**/*.rb")
-#end
 
 desc 'Run irb in project environment'
 task :console do

@@ -11,10 +11,10 @@ module Andromeda
       if inherit
         c = self
         while (c = c.superclass)
-          s = s.union c.destinations(false) rescue s
+          s = s.union c.get_attr_set(var_name, false) rescue s
         end
       end
-      s
+      return s
     end
 
     def name_attr_set(var_name, *names)

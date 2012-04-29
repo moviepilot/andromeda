@@ -1,9 +1,10 @@
 module Andromeda
 
-	module Proto
+	module Impl
 
 		# Generator for random xorable ids (used for markers)
 		class Id
+			include To_S
 
 		  protected
 
@@ -57,12 +58,13 @@ module Andromeda
 		    Id.new r.length, false, r
 		  end
 
-		  def to_s(short = false)
-		    r = if short then 'id: ' else "#<#{self.class}:" end
+		  def to_short_s
+		  	r = ''
 		    each { |b| r << Id.two_char_hex_str(b.to_s(16)) }
-		    r << '>' unless short
 		    r
 		  end
+
+		  def inspect ; to_s end
 
 		  private
 
@@ -83,18 +85,18 @@ module Andromeda
 		end
 	end
 
-	class Id < Proto::Id
-		# Default length if generated ids
-		DEFAULT_NUM_BYTES = 12
+	class Id < Impl::Id
+		# Default length of generated ids
+		DEFAULT_NUM_BYTES = 8
 
-	  # @param [Bool] init_random
-		def initialize(init_random = true)
-			super DEFAULT_NUM_BYTES, init_random
+	  # @param [Bool] random
+		def initialize(random = true)
+			super DEFAULT_NUM_BYTES, random
 		end
 
 	  # @return [Id] empty (zero) id
 	  def self.zero
-	  	@id = self.new false # false unless defined? @id
+	  	@id = self.new false unless defined? @id
 	  	@id
 	  end
 	end

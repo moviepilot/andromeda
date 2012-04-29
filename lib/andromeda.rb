@@ -1,13 +1,15 @@
 require 'rubygems'
 
 require 'set'
-require 'singleton'
-require 'delegate'
-require 'logger'
 require 'json'
+require 'logger'
+require 'delegate'
+require 'singleton'
+
+require 'atomic'
 require 'thread'
-require 'threadpool'
 require 'facter'
+require 'threadpool'
 Facter.loadfacts
 
 require 'andromeda/version'
@@ -16,17 +18,21 @@ module Andromeda
 
 	def self.files
 		f = []
+		f << 'andromeda/impl_base'
+
 		f << 'andromeda/id'
+		f << 'andromeda/atom'
 		f << 'andromeda/error'
-		f << 'andromeda/region'
-		f << 'andromeda/copy_clone'
 		f << 'andromeda/class_attr'
+		f << 'andromeda/copy_clone'
 		f << 'andromeda/guide_track'
 		# f << 'andromeda/pool_guide'
+
 		f << 'andromeda/spot'
-		# f << 'andromeda/plan'
+		f << 'andromeda/plan'
 		f << 'andromeda/sugar'
-		# f << 'andromeda/kit'
+
+		f << 'andromeda/kit'
 		# f << 'andromeda/command'
 		# f << 'andromeda/map_reduce'
 		f

@@ -2,7 +2,8 @@ module Andromeda
 
   class InfoMsg
 
-    def self.str(msg = '', details = {})
+    def self.str(msg = '', details = {}, cause_ = nil)
+      details[:cause] = cause_ if cause_
       (InfoMsg.new msg, details).to_s
     end
 

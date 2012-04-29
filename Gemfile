@@ -1,13 +1,12 @@
 source "http://rubygems.org"
 
 gem 'json', '>=1.6.5'
-gem 'threadpool'
-gem 'facter'
 gem 'atomic'
+gem 'facter'
+gem 'threadpool'
 
 group :development do
   gem 'rake'
-  gem 'maruku'
   gem 'yard'
   gem 'irbtools'
 end
@@ -19,4 +18,12 @@ end
 
 platforms :ruby do
   gem 'redcarpet'
+end
+
+platforms :rbx do
+  gem 'redcarpet'
+end
+
+platforms :jruby do
+  gem 'maruku'
 end

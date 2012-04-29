@@ -10,6 +10,7 @@ module Andromeda
   # You MUST not inherit from this class
   #
   class Spot
+    include Impl::To_S
 
     # @return [Plan] Plan on which this spot has been placed
     attr_reader :plan
@@ -47,17 +48,24 @@ module Andromeda
 
     def hash ; plan.hash ^ name.hash ^ here.hash end
 
-    alias_method :<<, :send
+    def to_short_s
+      here_ = here
+      if here_
+        then " plan=#{plan} name=:#{name} here=#{here_}"
+        else " plan=#{plan} name=:#{name}" end
+    end
+    alias_method :inspect, :to_s
 
-    def send(data, tags_in = {}) ; send_to nil, data, tags_in end
-    def send_local(data, tags_in = {}) ; send_to LocalTrack.instance, data, tags_in end
+    def post(data, tags_in = {}) ; post_to nil, data, tags_in end
+    def post_local(data, tags_in = {}) ; post_to LocalTrack.instance, data, tags_in end
 
-    def send_to(track, data, tags_in = {})
+    alias_method :<<, :post
+
+    def post_to(track, data, tags_in = {})
       tags_in = (here.tags.identical_copy.update(tags_in) rescue tags_in) if here
-      plan.send_data name, track, data, tags_in
+      plan.post_data name, track, data, tags_in
       self
     end
-
 
     def start ; entry.intern(nil) end
     def entry ; self end
