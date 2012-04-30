@@ -8,8 +8,8 @@ This document contains planning steps and ideas for the future of andromeda.
 * Convert old Pool code into Guards
 * Convert Kit into Plans
 * Convert Command into Plans, moving it into a submodule
-* Write helper support for testing: Atom::(Var, Region, Once, Combiner)
 * Test scope, tags, threading in IRB
+* Subscopes
 
 ### Write Test-Cases
 
