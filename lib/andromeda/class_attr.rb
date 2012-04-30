@@ -1,27 +1,31 @@
 module Andromeda
 
-	module ClassAttr
+  module Impl
 
-    protected
+  	module ClassAttr
 
-    def get_attr_set(var_name, inherit = true)
-      s = if instance_variable_defined?(var_name)
-            then instance_variable_get(var_name)
-            else Set.new end
-      if inherit
-        c = self
-        while (c = c.superclass)
-          s = s.union c.get_attr_set(var_name, false) rescue s
+      protected
+
+      def get_attr_set(var_name, inherit = true)
+        s = if instance_variable_defined?(var_name)
+              then instance_variable_get(var_name)
+              else Set.new end
+        if inherit
+          c = self
+          while (c = c.superclass)
+            s = s.union c.get_attr_set(var_name, false) rescue s
+          end
         end
+        return s
       end
-      return s
-    end
 
-    def name_attr_set(var_name, *names)
-      name_set = names.to_set
-      dest_set = get_attr_set var_name, false
-      instance_variable_set var_name, dest_set.union(name_set)
-    end
-	end
+      def name_attr_set(var_name, *names)
+        name_set = names.to_set
+        dest_set = get_attr_set var_name, false
+        instance_variable_set var_name, dest_set.union(name_set)
+      end
+  	end
+
+  end
 
 end
