@@ -4,6 +4,7 @@
 
 ## 0.1.2: Architecture Refactoring
 
+* Tested with rbx, mri, and jruby
 * Renaming and reorganization of architecture:
 Stages are now called plans, chunks data, opts tags and dests spots. Construction of Pools and state management (i.e. copying) of Plans and Tags has been factored into two new abstractions: Guards (state management, track selection), and Tracks (Executors/Thread pools).
 * Reorganization of modules (Plan is toplevel + Kit, Sync, Cmd, Atom)
@@ -11,6 +12,8 @@ Stages are now called plans, chunks data, opts tags and dests spots. Constructio
 * Beginning docs: CHANGELOG, ROADMAP
 * Cleaned up output in irb considerably
 * Wrote helper support for testing: Atom::(Var, Region, FillOnce, Combiner)
+* Renamed Command to Cmd and moved into Cmd:: module
+* Added guide nick names to Guides.self
 
 
 ## 0.1.1: Architecture Refactoring

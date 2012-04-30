@@ -26,15 +26,16 @@ module Andromeda
 		f << 'andromeda/class_attr'
 		f << 'andromeda/copy_clone'
 		f << 'andromeda/guide_track'
-		# f << 'andromeda/pool_guide'
+		f << 'andromeda/pool_guide'
 
 		f << 'andromeda/spot'
 		f << 'andromeda/plan'
+		f << 'andromeda/sync'
 		f << 'andromeda/sugar'
 
 		f << 'andromeda/kit'
-		# f << 'andromeda/command'
-		# f << 'andromeda/map_reduce'
+		f << 'andromeda/cmd'
+		f << 'andromeda/map_reduce'
 		f
 	end
 

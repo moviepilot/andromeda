@@ -45,36 +45,38 @@ module Andromeda
       @tags  ||= {}
     end
 
-    def init_guide ; Guides::LocalGuide end
+    def init_guide ; Guides::DefaultGuide.instance end
 
     def tags ; @tags end
     def to_short_s ; " id=#{id.to_short_s}t" end
     alias_method :inspect, :to_s
 
     def guide=(new_guide)
-      new_guide = new_guide.instance if new_guide.include?(Singleton)
+      new_guide = new_guide.instance if new_guide.is_ar?(Class) && new_guide.include?(Singleton)
       @guide    = new_guide
     end
 
-    def map_data(name, data) ; data end
+    def data_map(name, data) ; data end
     def data_key(name, data) ; name end
+    def key_spot(name, key) ; name end
+    def key_label(name, key) ; key end
     def data_val(name, data) ; data end
-    def keylabel(name, key) ; key end
     def data_tag(name, key, val, tags_in) ; { name: name } end
     def selects?(name, key, val, tags_in) ; true end
 
     def post_data(name, track_in, data, tags_in = {})
       details        = { name: name, data: data, tags_in: tags_in }
       begin
+        data   = data_map name, data
+        key    = data_key name, data
+        name   = key_spot name, key
+
         spot_  = spot name
         details[:spot] = spot_
         raise ArgumentError, "#{name} could not be resolved to a Spot" unless spot_
 
-        data   = map_data name, data
-        key    = data_key name, data
-
         guide_ = guide
-        label  = keylabel name, key
+        label  = key_label name, key
         details[:label] = label
         track_ = guide_.track spot_, label, track_in
         details[:track] = track_
@@ -82,7 +84,7 @@ module Andromeda
         value  = data_val name, data
         details[:val] = value
         tags_in.update data_tag name, key, value, tags_in
-        tags_in.update guide_.provision track_, tags_in
+        tags_in.update guide_.provision track_, label, tags_in
 
         pack_  = guide_.pack self, track_, track_.equal?(track_in)
         details[:pack] = pack_
@@ -106,11 +108,11 @@ module Andromeda
       end
     end
 
-    def call_inline(spot, k, v)
-      spot = intern spot
-      raise ArgumentError, "#{name} could not be resolved to a Spot" unless spot
-      raise ArgumenError, "Cannot call_inline for other Plans" unless spot.plan == self
-      self.method(:"on_#{spot.name}").call k, v
+    def call_local(spot_name, k, v)
+      spot_ = spot spot_name
+      raise ArgumentError, "#{name} could not be resolved to a Spot" unless spot_
+      raise ArgumenError, "Cannot call_inline for other Plans" unless spot_.plan == self
+      method(:"on_#{spot_name}").call k, v
     end
 
     def spot_name?(name) ; spot_names.include? name end
@@ -123,13 +125,15 @@ module Andromeda
     def current_name ;  tags[:name] end
 
     def >>(spot)
-      if spot.is_a?(spot)
+      if spot.is_a?(Spot)
         self.emit = spot
-        spot.plan
-      else
-        self.emit = spot.entry
-        spot
+        return spot.plan
       end
+      if spot.is_a?(Plan)
+        self.emit = spot.entry
+        return spot
+      end
+      raise ArgumentError, "Argument is neither a Spot nor a Plan"
     end
 
     # Maybe cache this
@@ -223,18 +227,18 @@ module Andromeda
         else super_ end
     end
 
-    def transport_data name, track, meth, key, value, tags_in
+    def transport_data name, track, meth, key, val, tags_in
       scope       = tags_in[:scope]
       enter_level = trace_level trace_enter, name
       exit_level  = trace_level trace_exit, name
-      details     = { name: name, plan: self, track: track, key: key, val: value }
+      details     = { name: name, plan: self, track: track, key: key, val: val }
       track.follow(scope) do
         begin
           trace :enter, enter_level, name, details if enter_level
-          deliver_data name, meth, key, value, tags_in
+          deliver_data name, meth, key, val, tags_in
           trace :exit, exit_level, name, details if exit_level
         rescue Exception => e
-          uncaught_exception name, key, value, e
+          uncaught_exception name, key, val, e
         end
       end
     end

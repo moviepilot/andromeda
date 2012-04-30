@@ -67,6 +67,10 @@ module Andromeda
       self
     end
 
+    def call_local(k, v)
+      plan.call_local(name, k, v)
+    end
+
     def start ; entry.intern(nil) end
     def entry ; self end
     def exit ; plan.exit end

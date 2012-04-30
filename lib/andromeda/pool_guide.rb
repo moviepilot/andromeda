@@ -1,102 +1,70 @@
 module Andromeda
 
-  # Helper class for easily obtaining a thread pool with num_processors threads
-  class PoolSupport
-    # @return [Fixnum] number of processors as determined by Facter
-    def self.num_processors
-      @num_procs = Facter.sp_number_processors.strip.to_i unless defined?(@num_procs)
-      @num_procs
-    end
+  module Guides
 
-    # @return [ThreadPool] a new thread pool with num_processors threads
-    def self.new_default_pool ; ThreadPool.new self.num_processors end
+    class PoolGuide < Guide
+      attr_reader :max_procs
+      attr_reader :pool_track
 
-    # @return [ThreadPool] a globally shared thread pool with num_processors threads
-    def self.global_pool(reset = false)
-      @pool = self.new_default_pool unless @pool || reset
-      @pool
-    end
+      # @return [Fixnum] number of processors as determined by Facter
+      def self.num_procs
+        @num_procs = Facter.sp_number_processors.strip.to_i unless defined?(@num_procs)
+        @num_procs
+      end
 
-    # @return [ThreadPool] of size 1
-    def self.new_single_pool ; ThreadPool.new(1) end
+      def initialize(num_procs = nil)
+        num_procs  = PoolGuide.num_procs unless num_procs
+        raise ArgumentError unless num_procs.is_a?(Fixnum)
+        raise ArgumentError unless num_procs > 0
+        @max_procs  = num_procs
+        @pool_track = PoolTrack.new ThreadPool.new(@max_procs)
+      end
 
-    # @return [ThreadPool] a globally shared thread pool with exactly one thread
-    def self.global_single_pool(reset = false)
-      @single_pool = self.new_single_pool unless @pool || reset
-      @single_pool
-    end
+      def track(spot, label, suggested_track = nil)
+        return suggested_track if suggested_track
+        return @pool_track
+      end
 
-    # @return [ThreadPool] that guarantees fifo processing of requests
-    def self.new_fifo_pool ; new_single_pool end
-
-    # @return [ThreadPool, Any] a new thread pool as requested by pool_descr
-    #
-    # @param [:local, :spawn, :single, :fifo, :default, :global, Object] pool_descr
-    #     If pool_descr is :spawn, uses SpawnPool.default_pool.
-    #     If pool_descr is :single, uses PoolSupport.new_single_pool.
-    #     If pool_descr is :default, uses PoolSupport.global_single_pool.
-    #     If pool_descr is :fifo, uses PoolSupport.new_fifo_pool.
-    #     If pool_descr is :shared, uses the globally shared PoolSupport.global_pool.
-    #     If pool_descr is :num_cpus uses PoolSupport.new_default_pool.
-    #     If pool_descr is :default uses PoolSupport.new_default_pool.
-    #     Otherwise, just returns pool_descr.
-    def self.make_pool(pool_descr)
-      case pool_descr
-          when :spawn then SpawnPool.default_pool
-          when :shared then  PoolSupport.global_pool
-          when :num_cpus then PoolSupport.new_default_pool
-          when :default then PoolSupport.new_default_pool
-          when :single then PoolSupport.new_single_pool
-          when :fifo then PoolSupport.new_fifo_pool
-          else
-            pool_descr
+      def pack(plan, track, was_suggested = false)
+        return plan if plan.frozen?
+        return plan.identical_copy if was_suggested
+        if max_procs > 1 then plan.identical_copy else plan end
       end
     end
-  end
 
-  # Fake thread pool that spawns an unlimited number of threads
-  class SpawnPool
-    def process(&block) ; Thread.new &block end
+    class PoolTrack
+      include DispatchingTrack
 
-    # @return [SpawnPool] a globally shared SpawnPool instance
-    def self.default_pool
-      @pool ||= SpawnPool.new
-      @pool
-    end
+      attr_reader :pool
 
-    # Does nothing
-    def shutdown ; end
-  end
-
-  # Caching factory for thread pools
-  class PoolFactory < Hash
-
-    attr_reader :pool_maker
-
-    # @yield [Proc] factory/maker for building thread pools for a given key
-    def initialize(&pool_maker)
-      @pool_maker = pool_maker
-    end
-
-    def [](key)
-      current = super key
-      if ! current
-        current   = pool_maker.call key
-        self[key] = current
+      def initialize(pool)
+        @pool = pool
       end
-      current
+
+      protected
+
+      def process(&thunk)
+        # DefaultLogger.instance.info ":enter #{pool.inspect}"
+        pool.process &thunk
+        # DefaultLogger.instance.info ":exit #{pool.inspect}"
+      end
     end
 
-    def []=(key, value)
-      raise ArgumentError, "Not a ThreadPool" unless value.respond_to?(:process)
-      super key, value
+    class SharedPoolGuide < PoolGuide
+      include Singleton
+
+      def initialize
+        super PoolGuide.num_procs
+      end
     end
 
-    def shutdown
-      values.each { |pool| pool.shutdown }
+    class SinglePoolGuide < PoolGuide
+      def initialize ; super 1 end
     end
 
-    alias_method :key_pool, :[]
+    class SharedSinglePoolGuide < SinglePoolGuide
+      include Singleton
+    end
+
   end
-
 end

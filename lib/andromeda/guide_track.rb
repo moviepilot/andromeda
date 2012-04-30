@@ -9,14 +9,14 @@ module Andromeda
         raise NoMethodError
       end
 
-      def provision(track, tags_in)
+      def provision(track, label, tags_in)
         tags_out = Hash.new
         tags_out[:scope] = ::Andromeda::Atom::Region.new unless tags_in[:scope]
+        tags_out[:label] = label
         tags_out
       end
 
       def pack(plan, track, was_suggested = false)
-        return plan.identical_copy if was_suggested
         if plan.frozen? then plan else plan.identical_copy end
       end
 

@@ -2,6 +2,7 @@ GEM
   remote: http://rubygems.org/
   specs:
     atomic (1.0.0)
+    atomic (1.0.0-java)
     awesome_print (1.0.2)
     boson (1.1.1)
     clipboard (1.0.1)
@@ -36,6 +37,9 @@ GEM
       wirb (>= 0.4.2)
       zucker (>= 12.1)
     json (1.6.6)
+    json (1.6.6-java)
+    maruku (0.6.0)
+      syntax (>= 1.0.0)
     method_locator (0.0.4)
     method_source (0.7.1)
     methodfinder (1.2.5)
@@ -60,6 +64,7 @@ GEM
     sketches (0.1.1)
     spoon (0.0.1)
     statval (0.1.2)
+    syntax (1.0.0)
     threadpool (0.1.0.1)
     unicode-display_width (0.1.1)
     wirb (0.4.2)
@@ -67,6 +72,7 @@ GEM
     zucker (12.1)
 
 PLATFORMS
+  java
   ruby
 
 DEPENDENCIES

@@ -2,10 +2,10 @@ module Andromeda
 
 	module Impl
 
-		class Atom < Atomic::Atomic
+		class Atom < Atomic
 			include To_S
 
-			def initializer(init_val = nil)
+			def initialize(init_val = nil)
 				super init_val
 			end
 
