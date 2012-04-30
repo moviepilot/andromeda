@@ -39,6 +39,16 @@ There is much more, dig the source, luke!
 
 *Note* All active development happens on the devel branch, cf. boggle/devel, too.
 
+## Installation
+
+    gem install andromeda
+
+## Requirements
+
+Any ruby that has working atomic and threadpool gems should do.
+
+Effectively, that is rubinius, jruby and mri ruby (if the provided threading is enough for your purpose).
+
 ## Online Docs
 
 Docs for the latest released gems are to be found in:
