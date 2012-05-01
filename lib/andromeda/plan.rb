@@ -74,10 +74,6 @@ module Andromeda
       log.send level, InfoMsg.str("TRACE :#{kind} :#{name}", details) if log
     end
 
-    def mk_spot(name, opts = {})
-      Spot.new self, name, self, opts[:dest]
-    end
-
     def deliver_data(name, meth, k, v, tags_in)
       update_mark
       tags.update tags_in

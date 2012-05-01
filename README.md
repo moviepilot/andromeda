@@ -57,9 +57,9 @@ Docs for the latest released gems are to be found in:
 
 http://rubydoc.info/gems/andromeda
 
-## Key Concepts
+## Overview
 
-### Overview: Spots, Plans, Guides, and Tracks
+### Key Concepts: Spots, Plans, Guides, and Tracks
 
 Andromeda works by sending data as events over a network of interconnected event handler endpoints (called spots).  Each spot is implemented in a container object that is called it's plan.  A plan can contain multiple spots, either in the form of event handling method spots (on_name methods of the plan) or as attribute spots that point to spots in other plans. Each plan has a default entry spot, a default exit spot, and an optional spot attribute called errors for signaling exceptions. Plans are connected with each other by assigning spot references to a plan's spot attributes.
 
@@ -72,6 +72,38 @@ Each plan is associated to a guide. First, guides control if and how plan instan
 Out of the box andromeda supports various guides: single thread (per plan or globally shared), thread pool (per plan or globally shared), execution in current thread, and spawning of a new thread per data event.
 
 To sum up, plans are factory objects that describe the instantiation of concrete data processing networks as guided by their associated guide objects and according to the rules of the underlying, executing tracks.
+
+### Quick Usage Example
+
+    class MyPlan < Andromeda::Plan
+      attr_spot :a, :b
+      meth_spot :alternative
+
+      def data_key(name, data) ; data end
+
+      def on_enter(key, val)
+        exit << val
+      end
+
+      def on_alternative(key, val)
+        return (a << val) if key == :a
+        return (b << val) if key == :b
+        signal_error ArgumentError.new("Unknown key: #{data}")
+      end
+    end
+
+    p = MyPlan.new
+    p.guide = Andromeda::Guides.shared_pool
+    p >> Andromeda::Kit::Tee.new(nick: :red)
+    p.a = Andromeda::Kit::Tee.new(nick: :green)
+    p.b = Andromeda::Kit::Tee.new(nick: :blue)
+
+    p << :a # logs to :red
+    p << :b # logs to :red
+    p.alternative << :a # logs to :green
+    p.alternative << :b # logs to :blue
+    p << :c # logs error
+
 
 ### Event handling details
 
@@ -115,7 +147,9 @@ Andromeda provides guides to ensure that state is only accessed by a single thre
 
 Alternatively, look at the provided plan implementations for example code.
 
-## Inspiration
+## Remarks
+
+### Inspiration
 
 Andromeda takes inspiration from several existing approaches / techniques in the area of concurrent programming.
 
@@ -124,6 +158,6 @@ Andromeda takes inspiration from several existing approaches / techniques in the
 * libdispatch: abstracting over used queues / thread pool
 * join calculus: Sync::Sync
 
-## Status
+### Status
 
 Alpha at best.

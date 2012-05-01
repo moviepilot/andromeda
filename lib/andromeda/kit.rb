@@ -25,7 +25,10 @@ module Andromeda
 			attr_accessor :delay
 
 			def initialize(config = {})
+				config = { nick: config } unless config.is_a? Hash || config.is_a?(Spot)
+				config = { other: config } unless config.is_a? Hash
 				super config
+
 				@level ||= :info
 			end
 
