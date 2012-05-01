@@ -32,6 +32,11 @@ module Andromeda
 				@level ||= :info
 			end
 
+			def initialize_copy(other)
+				@level = other.level.identical_copy
+				@delay = other.delay.identical_copy
+			end
+
 			def on_enter(key, val)
 				log_   = log
 				level_ = level
@@ -90,7 +95,7 @@ module Andromeda
 			attr_accessor :state
 			attr_accessor :reducer
 
-			meth_spot :new_state
+			attr_spot :new_state
 
 			def on_enter(key, val)
 				reducer_ = reducer
@@ -99,12 +104,8 @@ module Andromeda
 				new_     = reducer_.call state_, key, val
 				unless new_ == state_
 					state = new_
-					new_state.submit_now state
+					new_state << state if new_state
 				end
-			end
-
-			def on_new_state(key, val)
-				self.exit.submit_now val rescue nil
 			end
 		end
 

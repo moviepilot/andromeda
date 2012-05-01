@@ -181,8 +181,8 @@ module Andromeda
 					fst = tags[:first]
 					lst = tags[:last]
 
-					state = { :comment => true, :start => true }
-					while (line = file.gets)
+					state = { :comment => true, :start => true, :cont => true }
+					while (line = file.gets) && state[:cont]
 						line = line.chomp
 						match_line(state, line) do |token, state, parts|
 							signal_error ArgumentError.new("Skipping unexpected token #{token} in line '#{line}' (state: #{state})") unless state[token]
@@ -214,6 +214,7 @@ module Andromeda
 								signal_error ArgumentError.new("Start (#{cur[:cmd]}) and end (#{parts})cmd mismatch") unless cur[:cmd] == parts
 								signal_error ArgumentError.new("Length mismatch (expected: #{cur[:len]}, found: #{state[:len]})") unless cur[:len] == state[:len]
 								exit << cur if exit
+								state[:cont] = false unless file.pos <= lst
 							else
 								signal_error ArgumentError.new("Garbage encountered (line: '#{line}')")
 								return

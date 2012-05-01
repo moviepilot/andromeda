@@ -26,8 +26,10 @@ module Andromeda
 
     def initialize_copy(other)
       super other
-      @trace_enter = @trace_enter.identical_copy
-      @trace_exit  = @trace_exit.identical_copy
+      @trace_enter = other.trace_enter.identical_copy
+      @trace_exit  = other.trace_exit.identical_copy
+      @error_level = other.error_level.identical_copy
+      @nick        = other.nick.identical_copy
     end
 
     def tap ; yield self end
@@ -48,6 +50,8 @@ module Andromeda
         else super_ end
     end
 
+    protected
+
     def transport_data name, track, meth, key, val, tags_in
       scope       = tags_in[:scope]
       enter_level = trace_level trace_enter, name
@@ -63,8 +67,6 @@ module Andromeda
         end
       end
     end
-
-    protected
 
     def init_trace_hash(kind) ; {} end
 
@@ -86,7 +88,7 @@ module Andromeda
     end
 
     def signal_uncaught(e)
-      log.send error_level,e
+      log.send error_level, e rescue nil
       signal_error e
     end
 

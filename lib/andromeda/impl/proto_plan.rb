@@ -91,14 +91,11 @@ module Andromeda
         raise ArgumentError, "#{spot_} is not a Spot of this Plan" unless spot_.plan == self
 
         name     = spot_.name
-        details  = { name: name, data: data, tags_in: tags_in }
+        details  = { name: name, data: data, tags_in: tags_in, spot: spot_ }
         begin
           data   = data_map name, data
           key    = data_key name, data
           name   = key_spot name, key
-
-          details[:spot] = spot_
-          raise ArgumentError, "#{name} could not be resolved to a Spot" unless spot_
 
           guide_ = guide
           label  = key_label name, key
