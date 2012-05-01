@@ -1,8 +1,7 @@
 module Andromeda
-
   module Guides
 
-  	class Guide
+    class Guide
       include Andromeda::Impl::To_S
 
       def track(spot, label, suggested_track = nil)
@@ -20,7 +19,7 @@ module Andromeda
         if plan.frozen? then plan else plan.identical_copy end
       end
 
-  	end
+    end
 
     class Track
       include Andromeda::Impl::To_S

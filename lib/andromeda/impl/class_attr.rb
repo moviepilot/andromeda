@@ -2,7 +2,7 @@ module Andromeda
 
   module Impl
 
-  	module ClassAttr
+    module ClassAttr
 
       protected
 
@@ -24,7 +24,7 @@ module Andromeda
         dest_set = get_attr_set var_name, false
         instance_variable_set var_name, dest_set.union(name_set)
       end
-  	end
+    end
 
   end
 

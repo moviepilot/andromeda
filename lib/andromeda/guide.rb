@@ -2,7 +2,7 @@ module Andromeda
 
   module Guides
 
-  	class Guide
+    class Guide
       def track(spot, key, suggested_track = nil)
         raise NoMethodError
       end
@@ -11,7 +11,7 @@ module Andromeda
         return plan.copy if was_suggested
         if plan.frozen? then plan else plan.copy end
       end
-  	end
+    end
 
     class Track
       def follow(*args, &thunk) ; thunk.call *args end

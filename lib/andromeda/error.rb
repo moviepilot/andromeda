@@ -36,7 +36,7 @@ module Andromeda
     end
   end
 
-	class SendError < RuntimeError ; end
+  class SendError < RuntimeError ; end
   class ExecError < RuntimeError ; end
 
 end
