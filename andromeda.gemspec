@@ -5,8 +5,8 @@ require 'andromeda/version'
 Gem::Specification.new do |s|
   s.name        = 'andromeda'
   s.version     = Andromeda::VERSION
-  s.summary     = 'Ultra light weight multicore stream processing framework based on a dataflow DSL'
-  s.description = s.summary
+  s.summary     = 'light weght framework for complex event processing based on a dataflow DSL'
+  s.description = 'Andromeda is a light weight framework for complex event processing on multicore architectures. Andromeda users construct networks of plans that are interconnected via endpoint spots, describe how plans are scheduled onto threads, and process data by feeding data events to the resulting structure.'
   s.author      = 'Stefan Plantikow'
   s.email       = 'stefanp@moviepilot.com'
   s.homepage    = 'https://github.com/moviepilot/andromeda'
