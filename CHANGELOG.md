@@ -1,8 +1,9 @@
-# CHANGELOG
+# CHANGELOG for andromeda
 
 *Note* Not all versions are released gems, many version numbers just exist in the github repository.
 
-## 0.1.2: Architecture Refactoring
+
+## 0.1.2 Architecture Refactoring
 
 * via(:emit), Spot::>>, entry/dest, enter/exit separation
 * ConnectorBase, post_data clean up
@@ -19,7 +20,7 @@ Stages are now called plans, chunks data, opts tags and dests spots. Constructio
 * Added guide nick names to Guides.self
 
 
-## 0.1.1: Architecture Refactoring
+## 0.1.1 Architecture Refactoringm
 
 * Commands have support for comments
 * some work left todo for chunking
@@ -41,6 +42,7 @@ Stages are now called plans, chunks data, opts tags and dests spots. Constructio
 * Avoids cloning in single-threaded scenarios for shared state in gatherers
 * Modified thread pool creation to happen on init if possible
 * Added trace_pool for debugging which pools get used by whom
+
 
 ## 0.1 (Release)
 

@@ -18,12 +18,15 @@ module Andromeda
 
 	def self.files
 		f = []
-		f << 'andromeda/impl_base'
+		f << 'andromeda/impl/to_s'
+		f << 'andromeda/impl/atom'
+		f << 'andromeda/impl/xor_id'
+		f << 'andromeda/impl/class_attr'
+		f << 'andromeda/impl/proto_plan'
 
 		f << 'andromeda/id'
 		f << 'andromeda/atom'
 		f << 'andromeda/error'
-		f << 'andromeda/class_attr'
 		f << 'andromeda/copy_clone'
 		f << 'andromeda/guide_track'
 		f << 'andromeda/pool_guide'
