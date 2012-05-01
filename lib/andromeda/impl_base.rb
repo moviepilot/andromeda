@@ -9,9 +9,9 @@ module Andromeda
           to_short_s
         else
           super_str  = super()
-          short_name = self.class.name.split('::')[-1]
+          class_name = self.class.name.split('::')[-1]
           obj_id     = object_id.to_s(16)
-          "\#<#{short_name}:0x#{obj_id}#{to_s(true)}>"
+          "\#<#{class_name}:0x#{obj_id}#{to_s(true)}>"
         end
       end
 
@@ -25,5 +25,24 @@ module Andromeda
       end
 
     end
+
+    # Shared base class of Spot and Impl::PrePlan
+    class ConnectorBase
+      # @return [Spot] entry.intern nil
+      def start ; entry.intern(nil) end
+
+      # post_to nil, data, tags_in
+      #
+      # @return [self]
+      def post(data, tags_in = {}) ; post_to nil, data, tags_in end
+
+      alias_method :<<, :post
+
+      # post_to LocalTrack.instance, data, tags_in
+      #
+      # @return [self]
+      def post_local(data, tags_in = {}) ; post_to Guides::LocalTrack.instance, data, tags_in end
+    end
+
   end
 end

@@ -38,6 +38,4 @@ module Andromeda
     end
   end
 
-  # TODO DefaultTee
-
 end

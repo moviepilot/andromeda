@@ -2,7 +2,7 @@ module Andromeda
 
 	module Kit
 
-		class Transf < Plan
+		module Transf
 			attr_accessor :filter
 			attr_accessor :mapper
 
@@ -12,14 +12,14 @@ module Andromeda
 				else
 					filter_ = filter
 					mapper_ = mapper
-					if !(filter_ && filter_.call(data))
+					if !(filter_ && filter_.call(val))
 						super name, meth, key, (if mapper_ then mapper_.call(val) else val end), tags_in
 					end
 				end
 			end
 		end
 
-		class Tee < Transf
+		class Tee < Plan
 			attr_accessor :level
 			attr_accessor :other
 			attr_accessor :delay
@@ -48,7 +48,7 @@ module Andromeda
 			end
 		end
 
-		class Targeting < Transf
+		class Targeting < Plan
 			attr_accessor :targets
 
 			def initialize(config = {})
@@ -61,7 +61,7 @@ module Andromeda
 
 		class Broadc < Targeting
 			def on_enter(key, val)
-				target_values { |t| intern(t) << o rescue nil }
+				target_values { |t| intern(t) << val rescue nil }
 			end
 		end
 
@@ -80,6 +80,7 @@ module Andromeda
 		end
 
 		class Gatherer < SinglePlan
+			include Transf
 		end
 
 		class Reducer < Gatherer

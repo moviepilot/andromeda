@@ -4,6 +4,9 @@
 
 ## 0.1.2: Architecture Refactoring
 
+* via(:emit), Spot::>>, entry/dest, enter/exit separation
+* ConnectorBase, post_data clean up
+* (meth_|attr_)spot queries
 * Tested with rbx, mri, and jruby
 * Renaming and reorganization of architecture:
 Stages are now called plans, chunks data, opts tags and dests spots. Construction of Pools and state management (i.e. copying) of Plans and Tags has been factored into two new abstractions: Guards (state management, track selection), and Tracks (Executors/Thread pools).
