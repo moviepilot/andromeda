@@ -4,12 +4,12 @@ This document contains planning steps and ideas for the future of andromeda.
 
 ## Short-Term Todo's
 
-* Test with macruby, figure out if rubinius pre-compilation should be added
-* Convert old Pool code into Guards
-* Convert Kit into Plans
-* Convert Command into Plans, moving it into a submodule
+* DONE Test with macruby, figure out if rubinius pre-compilation should be added, doesnt work
+* DONE Convert old Pool code into Guards
+* DONE Convert Kit into Plans
+* DONE Convert Command into Plans, moving it into a submodule
 * Test scope, tags, threading in IRB
-* Subscopes
+* Subscopes ?
 
 ### Write Test-Cases
 
@@ -70,4 +70,3 @@ on intern using the yet to be written Atom::* vars.
 Add automatic distribution support.
 
 It should not be that hard.  In the end this is just a mildly interesting graph transformation on the topology, a bit of rewiring, and some support code to run stuff on remote machines.  Ah maybe we just use capistrano for that. Of course, that would be static only. Dynamic job submission is a diffrerent story, as is at-most-once messaging (i.e. transactionality).
-

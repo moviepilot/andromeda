@@ -66,7 +66,7 @@ module Andromeda
       end
 
       # Overload to map all incoming data, default to data
-      def data_map(name, data) ; data end
+      def map_data(name, data) ; data end
 
       # Overload to extract the data key from mapped, incoming data, defaults to name
       def data_key(name, data) ; name end
@@ -93,7 +93,7 @@ module Andromeda
         name     = spot_.name
         details  = { name: name, data: data, tags_in: tags_in, spot: spot_ }
         begin
-          data   = data_map name, data
+          data   = map_data name, data
           key    = data_key name, data
           name   = key_spot name, key
 
