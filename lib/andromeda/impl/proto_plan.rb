@@ -150,7 +150,11 @@ module Andromeda
       def current_scope ;  tags[:scope] end
       def current_name ;  tags[:name] end
 
-      def >>(spot) ; @emit = spot.entry ; spot.dest end
+      def >>(spot)
+        @emit = spot.entry
+        d     = spot.dest 
+        if d then d else spot end
+      end
 
       def entry ; enter end
       def dest ; emit end

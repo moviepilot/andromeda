@@ -55,6 +55,8 @@ module Andromeda
     # (will only work if there is no concurrent modification to the associated scope)
     class Bracket < Plan
 
+      def init_guide ; ::Andromeda::Guides::LocalGuide end
+
       def on_enter(key, val)
         scope_ = current_scope
         value_ = scope_.value
