@@ -6,25 +6,25 @@ module Andromeda
 
   module Guides
 
-    def self.default ; DefaultGuide.instance end
-    def self.single ; SinglePoolGuide.new end
+    def self.default=(new_guide)
+      DefaultGuideHolder.instance.guide = new_guide
+    end
+
+    def self.default ;  DefaultGuideHolder.instance.guide end
+
+    def self.single ; SinglePoolGuide end
     def self.shared_pool ; SharedPoolGuide end
-    def self.pool ; SharedPoolGuide.new end
+    def self.pool ; SharedPoolGuide end
     def self.local ; LocalGuide end
     def self.shared_single ; SharedSinglePoolGuide end
 
-    class DefaultGuide < SimpleDelegator
+    class DefaultGuideHolder
       include Singleton
 
-      def initialize
-        super LocalGuide.instance
-      end
+      attr_accessor :guide
 
-      def instance=(new_instance)
-        if new_instance.is_a?(Class) && new_instance.include?(Singleton)
-          new_instance = new_instance.instance
-        end
-        instance.__setobj__ new_instance
+      def initialize
+        @guide = LocalGuide
       end
     end
 

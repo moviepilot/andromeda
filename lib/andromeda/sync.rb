@@ -53,12 +53,12 @@ module Andromeda
 
     # Passes all input and waits for the associated scope to return to the start value
     # (will only work if there is no concurrent modification to the associated scope)
-    class ScopeWaiter < Plan
+    class Bracket < Plan
 
-      def on_enter(k, v)
+      def on_enter(key, val)
         scope_ = current_scope
         value_ = scope_.value
-        super k, v
+        super key, val
         scope_.wait_until_eq value_
       end
     end

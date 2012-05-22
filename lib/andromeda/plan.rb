@@ -37,9 +37,9 @@ module Andromeda
     def log ; @log = DefaultLogger.instance end
     def mark ; @mark = Id.zero unless @mark ; @mark end
 
-    def on_enter(k, v)
+    def on_enter(key, val)
       exit_ = exit
-      exit_ << v if exit_
+      exit_ << val if exit_
     end
 
     def to_short_s

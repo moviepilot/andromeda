@@ -46,7 +46,7 @@ module Andromeda
         @id      = Id.new
         set_from_config init_from_config, config
         @tags  ||= {}
-        @guide ||= init_guide
+        self.guide=(init_guide) unless @guide
       end
 
       def initialize_copy(other)
@@ -54,36 +54,41 @@ module Andromeda
         @tags  ||= {}
       end
 
-      def init_guide ; Guides::DefaultGuide.instance end
+      def init_guide ; Guides.default end
 
       def tags ; @tags end
       def to_short_s ; " id=#{id.to_short_s}t" end
       alias_method :inspect, :to_s
 
       def guide=(new_guide)
-        new_guide = new_guide.instance if new_guide.is_a?(Class) && new_guide.include?(Singleton)
-        @guide    = new_guide
+        @guide = if new_guide.is_a?(Class)
+          if new_guide.include?(Singleton) 
+            then new_guide.instance
+            else new_guide.new end
+        else
+          new_guide
+        end
       end
 
-      # Overload to map all incoming data, default to data
+      # Override to map all incoming data, default to data
       def map_data(name, data) ; data end
 
-      # Overload to extract the data key from mapped, incoming data, defaults to name
+      # Override to extract the data key from mapped, incoming data, defaults to name
       def data_key(name, data) ; name end
 
-      # Overload to determine the target spot name from the key, defaults to name
+      # Override to determine the target spot name from the key, defaults to name
       def key_spot(name, key) ; name end
 
-      # Overload to determine the target track label from the key, defaults to ket
+      # Override to determine the target track label from the key, defaults to key
       def key_label(name, key) ; key end
 
-      # Overload to extract the data value from mapped, incoming data, defaults to data
+      # Override to extract the data value from mapped, incoming data, defaults to data
       def data_val(name, data) ; data end
 
-      # Overload to compute additional tags
+      # Override to compute additional tags
       def data_tag(name, key, val, tags_in) ; { name: name } end
 
-      # Overload to filter the data events that should be processed, defaults to true
+      # Override to filter the data events that should be processed, defaults to true
       def selects?(name, key, val, tags_in) ; true end
 
       def post_data(spot_, track_in, data, tags_in = {})

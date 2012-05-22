@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    andromeda (0.1.2)
+    andromeda (0.1.3)
       atomic
       facter
       json

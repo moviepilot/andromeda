@@ -24,7 +24,7 @@ Below is an example that writes events to a file and reads them back such that t
     r = Cmd::Reader.new path: '/tmp/some_file'
     p = Cmd::Parser.new
     t = Kit::Tee.new
-    s = Sync::ScopeWaiter.new
+    s = Sync::Bracket.new
     # Connect the processing steps (Plans)
     s >> r >> p >> t
     # Enfore reader to run on a separate single thread
@@ -135,7 +135,7 @@ Andromeda provides a small set of reserved default tags that should not be overw
 
 #### Wating for event handling completion
 
-Waiting for event handling completion may be achieved by utilizing a special wrapper plan (cf. Sync::ScopeWaiter). This is implemented using an atomic counter (cf. Atom::Region).
+Waiting for event handling completion may be achieved by utilizing a special wrapper plan (cf. Sync::Bracket). This is implemented using an atomic counter (cf. Atom::Region).
 
 #### Performance
 
