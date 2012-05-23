@@ -21,7 +21,7 @@ module Andromeda
 
     class Tee < Plan
       attr_accessor :level
-      attr_accessor :other
+      attr_spot :other
       attr_accessor :delay
 
       def initialize(config = {})

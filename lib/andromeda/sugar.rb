@@ -13,10 +13,10 @@ module Andromeda
     def self.default ;  DefaultGuideHolder.instance.guide end
 
     def self.single ; SinglePoolGuide end
-    def self.shared_pool ; SharedPoolGuide end
-    def self.pool ; SharedPoolGuide end
-    def self.local ; LocalGuide end
     def self.shared_single ; SharedSinglePoolGuide end
+    def self.pool ; PoolGuide end
+    def self.shared_pool ; SharedPoolGuide end
+    def self.local ; LocalGuide end
 
     class DefaultGuideHolder
       include Singleton
