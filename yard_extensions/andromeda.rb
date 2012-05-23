@@ -1,7 +1,7 @@
 require 'yard'
 
 class MethSpotHandler < YARD::Handlers::Ruby::AttributeHandler
-  handles method_call(:meth_spot)
+  handles method_call(:spot_meth)
   namespace_only
 
   def process
@@ -10,7 +10,7 @@ class MethSpotHandler < YARD::Handlers::Ruby::AttributeHandler
 end
 
 class AttrSpotHandler < YARD::Handlers::Ruby::AttributeHandler
-  handles method_call(:attr_spot)
+  handles method_call(:spot_attr)
   namespace_only
 
   def process

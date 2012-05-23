@@ -2,8 +2,8 @@ module Andromeda
 
   class Plan < Impl::ProtoPlan
 
-    meth_spot :enter
-    attr_spot :errors
+    spot_meth :enter
+    spot_attr :errors
 
     signal_spot :errors
 

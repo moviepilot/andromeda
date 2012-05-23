@@ -49,10 +49,10 @@ module Andromeda
       attr_reader :mode
       attr_reader :file
 
-      meth_spot :open
-      meth_spot :sync
-      meth_spot :close
-      meth_spot :input
+      spot_meth :open
+      spot_meth :sync
+      spot_meth :close
+      spot_meth :input
 
       signal_spot :open
       signal_spot :close

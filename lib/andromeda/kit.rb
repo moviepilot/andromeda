@@ -21,7 +21,7 @@ module Andromeda
 
     class Tee < Plan
       attr_accessor :level
-      attr_spot :other
+      spot_attr :other
       attr_accessor :delay
 
       def initialize(config = {})
@@ -95,7 +95,7 @@ module Andromeda
       attr_accessor :state
       attr_accessor :reducer
 
-      attr_spot :new_state
+      spot_attr :new_state
 
       def on_enter(key, val)
         reducer_ = reducer

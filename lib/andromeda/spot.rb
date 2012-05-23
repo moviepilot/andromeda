@@ -31,7 +31,7 @@ module Andromeda
     def initialize(plan, name, here, dest = nil)
       raise ArgumentError, "#{plan} is not a Plan" unless plan.is_a? Plan
       raise ArgumentError, "#{name} is not a Symbol" unless name.is_a? Symbol
-      unless plan.meth_spot_name?(name)
+      unless plan.spot_meth_name?(name)
         raise ArgumentError, "#{name} is not a known method spot name of #{plan}"
       end
       unless dest.nil? || dest.is_a?(Symbol)
@@ -114,8 +114,8 @@ module Andromeda
 
     def >>(target)
       return (plan >> target) unless dest_name
-      unless plan.attr_spot_name?(dest_name)
-        raise ArgumentError, "#{dest_name} is not an attr_spot_name"
+      unless plan.spot_attr_name?(dest_name)
+        raise ArgumentError, "#{dest_name} is not an spot_attr_name"
       end
       plan.send :"#{dest_name}=", target.entry
       plan.public_spot(dest_name)

@@ -76,8 +76,8 @@ To sum up, plans are factory objects that describe the instantiation of concrete
 ### Quick Usage Example
 
     class MyPlan < Andromeda::Plan
-      attr_spot :a, :b
-      meth_spot :alternative
+      spot_attr :a, :b
+      spot_meth :alternative
 
       def data_key(name, data) ; data end
 

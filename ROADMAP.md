@@ -23,7 +23,7 @@ around when andromeda is re-used by neoscout.
 * Add high-level description to README.md
 * Add examples to README.md
 * Add link to yardocs to README.md as soon as that makes sense
-* Figure out yardoc methods for documenting meth_spot and attr_spot
+* Figure out yardoc methods for documenting spot_meth and spot_attr
 
 ### Write a better DSL for connecting plans
 

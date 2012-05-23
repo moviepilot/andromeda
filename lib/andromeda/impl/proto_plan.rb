@@ -8,21 +8,21 @@ module Andromeda
       extend Impl::ClassAttr
 
       def self.spot_names(inherit = true) ; get_attr_set '@spot_names', inherit end
-      def self.attr_spot_names(inherit = true) ; get_attr_set '@attr_spot_names', inherit end
-      def self.meth_spot_names(inherit = true) ; get_attr_set '@meth_spot_names', inherit end
+      def self.spot_attr_names(inherit = true) ; get_attr_set '@spot_attr_names', inherit end
+      def self.spot_meth_names(inherit = true) ; get_attr_set '@spot_meth_names', inherit end
       def self.name_spot(*names) ; name_attr_set '@spot_names', *names end
 
-      def self.meth_spot(name, opts = {})
+      def self.spot_meth(name, opts = {})
         name_spot name
-        name_attr_set '@meth_spot_names', name
+        name_attr_set '@spot_meth_names', name
         define_method :"#{name}" do ||
           mk_spot name, opts = {}
         end
       end
 
-      def self.attr_spot(*names)
+      def self.spot_attr(*names)
         name_spot *names
-        name_attr_set '@attr_spot_names', *names
+        name_attr_set '@spot_attr_names', *names
         attr_writer *names
         names.each do |name|
           define_method :"#{name}" do ||
@@ -138,13 +138,13 @@ module Andromeda
       end
 
       def spot_name?(name) ; spot_names.include? name end
-      def attr_spot_name?(name) ; attr_spot_names.include? name end
-      def meth_spot_name?(name) ; meth_spot_names.include? name end
+      def spot_attr_name?(name) ; spot_attr_names.include? name end
+      def spot_meth_name?(name) ; spot_meth_names.include? name end
       def signal_name?(name) ; signal_names.include? name end
 
       def spot_names ; self.class.spot_names end
-      def attr_spot_names ; self.class.attr_spot_names end
-      def meth_spot_names ; self.class.meth_spot_names end
+      def spot_attr_names ; self.class.spot_attr_names end
+      def spot_meth_names ; self.class.spot_meth_names end
       def signal_names ; self.class.signal_names end
 
       def current_scope ;  tags[:scope] end
@@ -165,7 +165,7 @@ module Andromeda
 
       protected
 
-      attr_spot :emit
+      spot_attr :emit
 
       def exit ; emit end
 
