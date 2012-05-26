@@ -4,12 +4,11 @@ This document contains planning steps and ideas for the future of andromeda.
 
 ## Short-Term Todo's
 
-* DONE Test with macruby, figure out if rubinius pre-compilation should be added, doesnt work
-* DONE Convert old Pool code into Guards
-* DONE Convert Kit into Plans
-* DONE Convert Command into Plans, moving it into a submodule
-* Test scope, tags, threading in IRB
-* Subscopes ?
+* TODO bin_search ascending and descending
+* TODO switch to RIPL
+* TODO Test bracktets/scope, tags, threading in IRB
+* TODO Think about subscopes
+* TODO log support / generally move stuff like that from ProtoPlan to mixins
 
 ### Write Test-Cases
 
