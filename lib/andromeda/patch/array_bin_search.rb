@@ -4,7 +4,9 @@ module BinSearch
   # is less than 1 << LIN_BITS (i.e. 2^LIN_BITS - 1)
   LIN_BITS = 6
 
-  MODE_IS_ASC   = [ :asc, :asc_eq ]
+  MODES         = [ :asc, :desc, :asc_leq, :desc_geq, :asc_eq, :desc_eq ]
+  MODE_IS_ASC   = [ :asc, :asc_eq, :asc_leq ]
+  MODE_IS_DESC  = [ :desc, :desc_eq, :desc_geq ]
   MODE_CHECK_EQ = [ :asc_eq, :desc_eq ]
 
   module Methods
@@ -165,11 +167,8 @@ module BinSearch
     private
 
     def _bin_index(elem, low, high, dir, check_eq)
-      last = -1
-      cur  = nil
       sz   = high - low
-      cmp_ = 0
-      if (sz >> LIN_BITS).nonzero?
+      if (sz >> LIN_BITS).zero?
         # On 2012 cpus, linear search is slightly faster than binary search
         # if the number of searched elements is in the range of 50-100 elts
         cur_index = low
@@ -183,6 +182,8 @@ module BinSearch
         return -1
       else
         # Classic binary search
+        cmp_ = 0
+        last = -1
         while low <= high
           mid_index = low + (sz >> 1)
           mid = self[mid_index]
@@ -190,7 +191,6 @@ module BinSearch
           if cmp == dir
             low  = mid_index + 1
           else
-            cur  = mid
             cmp_ = cmp
             last = mid_index
             high = mid_index - 1
@@ -202,13 +202,79 @@ module BinSearch
     end
 
     def _bin_search(elem, low, high, dir, check_eq)
-      idx = _bin_index(elem, low, high, dir, check_eq) { |a, b| yield a, b }
-      if idx == -1 then nil else self[idx] end
+      sz   = high - low
+      cur  = nil
+      if (sz >> LIN_BITS).zero?
+        # On 2012 cpus, linear search is slightly faster than binary search
+        # if the number of searched elements is in the range of 50-100 elts
+        cur_index = low
+        while cur_index <= high
+          cur = self[cur_index]
+          cmp = yield elem, cur
+          if cmp == dir
+            then cur_index += 1
+            else return (if (check_eq && cmp.nonzero?) then nil else cur end) end
+        end
+        return nil
+      else
+        # Classic binary search
+        cmp_ = 0
+        last = -1
+        while low <= high
+          mid_index = low + (sz >> 1)
+          mid = self[mid_index]
+          cmp = yield elem, mid
+          if cmp == dir
+            low  = mid_index + 1
+          else
+            cmp_ = cmp
+            cur  = mid
+            last = mid_index
+            high = mid_index - 1
+          end
+          sz -= 1
+        end
+        return (if (check_eq && cmp_.nonzero?) then nil else cur end)
+      end
     end
 
     def _bin_assoc(elem, low, high, dir, check_eq)
-      idx = _bin_index(elem, low, high, dir, check_eq) { |a, b| yield a, b }
-      if idx == -1 then nil else [idx, self[idx]] end
+      sz   = high - low
+      cur  = nil
+      if (sz >> LIN_BITS).zero?
+        # On 2012 cpus, linear search is slightly faster than binary search
+        # if the number of searched elements is in the range of 50-100 elts
+        cur_index = low
+        while cur_index <= high
+          cur = self[cur_index]
+          cmp = yield elem, cur
+          if cmp == dir
+            cur_index += 1
+          else
+            return (if (!cur || (check_eq && cmp.nonzero?)) then nil else [cur_index, cur] end)
+          end
+        end
+        return nil
+      else
+        # Classic binary search
+        cmp_ = 0
+        last = -1
+        while low <= high
+          mid_index = low + (sz >> 1)
+          mid = self[mid_index]
+          cmp = yield elem, mid
+          if cmp == dir
+            low  = mid_index + 1
+          else
+            cmp_ = cmp
+            cur  = mid
+            last = mid_index
+            high = mid_index - 1
+          end
+          sz -= 1
+        end
+        return (if (!cur || (check_eq && cmp_.nonzero?)) then nil else [last, cur] end)
+      end
     end
 
   end # module Methods
