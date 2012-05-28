@@ -24,7 +24,6 @@ Gem::Specification.new do |s|
   s.add_dependency 'json'
   s.add_dependency 'atomic'
   s.add_dependency 'facter'
-  s.add_dependency 'statval'
   s.add_dependency 'threadpool'
 
   s.add_development_dependency 'rspec'
