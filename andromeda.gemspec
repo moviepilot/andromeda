@@ -31,6 +31,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'simplecov'
   s.add_development_dependency 'rake'
   s.add_development_dependency 'yard'
+  s.add_development_dependency 'pry'
 
   case RUBY_ENGINE.to_sym
     when :jruby then s.add_development_dependency 'maruku'

@@ -8,7 +8,15 @@ module Andromeda
 
       # @return [Fixnum] number of processors as determined by Facter
       def self.num_procs
-        @num_procs = Facter.sp_number_processors.strip.to_i unless defined?(@num_procs)
+        if ENV['NUM_PROCS']
+          @num_procs = ENV['NUM_PROCS'].to_i
+        end
+        case RUBY_PLATFORM
+        when 'java'
+          @num_procs = java.lang.Runtime.get_runtime.available_processors unless defined?(@num_procs)
+        else
+          @num_procs = Facter.sp_number_processors.strip.to_i unless defined?(@num_procs)
+        end
         @num_procs
       end
 
