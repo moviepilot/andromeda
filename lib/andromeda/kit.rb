@@ -19,6 +19,26 @@ module Andromeda
       end
     end
 
+    class Block < ::Andromeda::Plan
+      attr_accessor :block
+
+      include Transf
+
+      def initialize(config = {})
+        super config
+        raise ArgumentError unless block_given?
+        @block = lambda { |key, val| yield key, val }
+      end
+
+      def on_enter(key, val)
+        if @block
+          super key, (instance_exec key, val, &@block)
+        else
+          super key, val
+        end
+      end
+    end
+
     class Tee < Plan
       attr_accessor :level
       spot_attr :other

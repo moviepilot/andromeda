@@ -2,6 +2,9 @@
 
 *Note* Not all versions are released gems, many version numbers just exist in the github repository.
 
+## 0.1.5 Adds Block to Kit
+
+## 0.1.4 Numerous bug fixes
 
 ## 0.1.2 Architecture Refactoring
 
@@ -20,7 +23,7 @@ Stages are now called plans, chunks data, opts tags and dests spots. Constructio
 * Added guide nick names to Guides.self
 
 
-## 0.1.1 Architecture Refactoringm
+## 0.1.1 Architecture Refactoring
 
 * Commands have support for comments
 * some work left todo for chunking
